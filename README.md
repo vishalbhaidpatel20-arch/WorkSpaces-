@@ -1,4 +1,4 @@
-# FlexoSpaces
+# WorkSpaces
 
 **Smart Co-Working Space Management Using Real-Time Monitoring**
 
