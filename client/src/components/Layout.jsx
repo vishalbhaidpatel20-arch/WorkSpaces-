@@ -4,6 +4,7 @@ import { useAuth, homeFor } from '../lib/auth.jsx';
 import { api } from '../lib/api.js';
 import { relativeTime } from '../lib/format.js';
 import { Spinner } from './ui.jsx';
+import EnvironmentNotice from './EnvironmentNotice.jsx';
 
 function Logo() {
   return (
@@ -134,6 +135,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <EnvironmentNotice />
       <header className="sticky top-0 z-40 border-b border-ink/8 bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
           <Logo />

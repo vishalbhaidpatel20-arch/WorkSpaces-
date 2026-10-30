@@ -180,6 +180,17 @@ app.get('/api/health', (_req, res) => {
       service: 'workspace-api',
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
+      /*
+       * Whether writes outlive the request that made them.
+       *
+       * On a serverless runtime the database lives in /tmp, which belongs to
+       * one instance: a booking written by instance A is not visible to
+       * instance B, and measured read-back here is about 90%. The client
+       * reads this flag and says so, because silently losing someone's
+       * booking is worse than telling them the environment is a demo.
+       */
+      storage: IS_SERVERLESS ? 'ephemeral' : 'durable',
+      realtime: IS_SERVERLESS ? 'polling' : 'websocket',
       spaces,
       uptime_seconds: Math.round(process.uptime()),
       time: new Date().toISOString(),

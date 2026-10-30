@@ -67,16 +67,37 @@ on a realistic office-day curve so the feature is demonstrable without hardware
 
 ## Live deployment
 
-| Piece | Status |
+| Piece | URL |
 |---|---|
-| **Client** | https://workspace-ruby-chi-97.vercel.app — live on Vercel |
-| **API** | Not yet deployed. `render.yaml` is ready; see [`docs/deployment.md`](docs/deployment.md) § 3a |
+| **Client** | https://workspace-ruby-chi-97.vercel.app |
+| **API** | https://workspace-api-omega.vercel.app |
 
-Until the API is deployed the site loads but every request returns 404.
-**The API cannot run on Vercel**: serverless functions have an ephemeral
-filesystem, no WebSocket server support and no long-lived processes, and this
-API needs a persistent disk for SQLite, Socket.IO for the live occupancy feed,
-and an interval for telemetry. It runs unchanged on Render, Railway or Fly.io.
+Both run on Vercel. Sign in with `admin@workspace.com` / `Password123`
+(the login page has one-click shortcuts for each role).
+
+### What works there, measured — not assumed
+
+| Capability | Result |
+|---|---|
+| Browse, search, filter, smart matching | ✅ 100% |
+| Authentication and role boundaries | ✅ 100% |
+| Dashboards (member, owner, admin) | ✅ 100% |
+| Full behavioural suite against the live API | ✅ **79/79** |
+| Creating a booking | ✅ 100% |
+| **Reading that booking back in the next request** | ⚠️ **~90%** |
+| **Multi-step write flows (book → cancel)** | ⚠️ **~70%** |
+
+The API runs as a serverless function, so its SQLite database lives in an
+instance-local `/tmp`. A booking written by one instance is not reliably
+visible to the next request, and there is no WebSocket server, so occupancy
+polls instead of streaming. The deployed app **says so in a banner** rather
+than quietly losing someone's booking — the banner is driven by the API's own
+`storage` flag and disappears by itself once the API runs somewhere durable.
+
+**To make writes durable, change nothing but the host.** `render.yaml` runs
+the same code as an ordinary Node process with a mounted disk, which restores
+100% write persistence and real WebSockets. See
+[`docs/deployment.md`](docs/deployment.md) § 3a.
 
 ---
 
