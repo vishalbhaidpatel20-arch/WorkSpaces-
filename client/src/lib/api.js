@@ -10,7 +10,22 @@ const TOKEN_KEY = 'workspace.token';
  * the API on a container platform) - that origin must also appear in the API's
  * CORS_ORIGIN allowlist.
  */
-export const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+export const API_BASE = sanitiseBase(import.meta.env.VITE_API_URL);
+
+/**
+ * Normalise the configured API origin.
+ *
+ * `trim()` is not cosmetic here: shells and CI UIs routinely store a value
+ * with a leading UTF-8 BOM or stray whitespace, and a single invisible
+ * character turns an absolute URL into a relative one. The request then
+ * resolves against the app's own origin, the SPA shell comes back as 200,
+ * and the failure surfaces much later as "no results" rather than as a
+ * network error - so it is worth stripping at the source.
+ */
+function sanitiseBase(value) {
+  if (!value) return '';
+  return value.replace(/^﻿/, '').trim().replace(/\/+$/, '');
+}
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);

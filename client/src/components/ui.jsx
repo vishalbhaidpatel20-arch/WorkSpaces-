@@ -228,14 +228,29 @@ export function SectionHeading({ title, hint, action }) {
   );
 }
 
-/** Live-feed indicator: a pulsing dot plus the word, never colour alone. */
-export function LiveDot({ connected }) {
+/**
+ * Live-feed indicator: a dot plus the word, never colour alone.
+ *
+ * "Polling" rather than "Offline" when the socket is unavailable, because the
+ * data is still refreshing - just on an interval instead of a push. Calling
+ * that offline would be wrong.
+ */
+export function LiveDot({ connected, polling = true }) {
+  const state = connected ? 'live' : polling ? 'polling' : 'offline';
+  const label = { live: 'Live', polling: 'Polling', offline: 'Offline' }[state];
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft"
+          title={connected
+            ? 'Streaming over a websocket'
+            : polling
+              ? 'No websocket available here — refreshing on an interval instead'
+              : 'Not receiving updates'}>
       <span aria-hidden="true"
             className={`h-2 w-2 rounded-full ${
-              connected ? 'animate-pulse bg-ink' : 'bg-ink-muted opacity-40'}`} />
-      {connected ? 'Live' : 'Offline'}
+              state === 'live' ? 'animate-pulse bg-ink'
+                : state === 'polling' ? 'bg-ink-muted'
+                : 'bg-ink-muted opacity-40'}`} />
+      {label}
     </span>
   );
 }

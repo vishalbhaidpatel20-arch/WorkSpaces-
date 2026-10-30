@@ -152,6 +152,7 @@ export default function OwnerDashboard() {
   // Live feed: occupancy ticks update in place, and a new request reloads the
   // queue so the owner never acts on stale numbers.
   const { bySpace, connected } = useMonitorFeed({
+    poll: reload,
     onBooking: (b) => {
       if (b.status === 'pending') {
         toast.info(`New booking request for ${b.space_name}`);

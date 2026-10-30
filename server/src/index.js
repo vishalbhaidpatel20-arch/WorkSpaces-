@@ -12,7 +12,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { Server as SocketServer } from 'socket.io';
 
-import db, { closeDatabase } from './lib/db.js';
+import db, { closeDatabase, IS_SERVERLESS } from './lib/db.js';
 import { attachUser } from './middleware/auth.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 import { initRealtime, stopOccupancySimulator } from './realtime.js';
@@ -218,22 +218,33 @@ app.use(errorHandler);
 
 /* -------------------------------------------------------------- server --- */
 
-const server = http.createServer(app);
-const io = new SocketServer(server, {
-  // Same origin rule as the REST layer, so the live feed never fails on a
-  // port the API would otherwise accept.
-  cors: {
-    origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
-    credentials: true,
-  },
-});
-initRealtime(io, { simulate: process.env.OCCUPANCY_SIMULATION !== 'off' });
+/*
+ * Under a serverless runtime the platform owns the HTTP server and recycles
+ * the process between requests, so there is nothing to listen on, no socket
+ * to keep open and no interval to run. The Express app is exported for the
+ * platform's handler and the rest of this file is skipped.
+ */
+let server = null;
+let io = null;
 
-server.listen(PORT, () => {
-  console.log(`WorkSpace API listening on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Allowed origins: ${ORIGINS.join(', ')}`);
-});
+if (!IS_SERVERLESS) {
+  server = http.createServer(app);
+  io = new SocketServer(server, {
+    // Same origin rule as the REST layer, so the live feed never fails on a
+    // port the API would otherwise accept.
+    cors: {
+      origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
+      credentials: true,
+    },
+  });
+  initRealtime(io, { simulate: process.env.OCCUPANCY_SIMULATION !== 'off' });
+
+  server.listen(PORT, () => {
+    console.log(`WorkSpace API listening on http://localhost:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Allowed origins: ${ORIGINS.join(', ')}`);
+  });
+}
 
 /* ---------------------------------------------------- graceful shutdown --- */
 
@@ -250,7 +261,7 @@ function shutdown(signal) {
   console.log(`\n${signal} received, shutting down…`);
 
   stopOccupancySimulator();
-  io.close();
+  io?.close();
 
   const forced = setTimeout(() => {
     console.error('Shutdown timed out after 10s, exiting.');
@@ -259,6 +270,11 @@ function shutdown(signal) {
   }, 10_000);
   forced.unref();
 
+  if (!server) {
+    closeDatabase();
+    process.exit(0);
+  }
+
   server.close(() => {
     closeDatabase();
     console.log('Closed cleanly.');
@@ -266,8 +282,12 @@ function shutdown(signal) {
   });
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+// The platform manages the lifecycle of a serverless instance, so these
+// handlers belong only to a long-lived process.
+if (!IS_SERVERLESS) {
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection:', reason);

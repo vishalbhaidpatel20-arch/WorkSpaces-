@@ -56,6 +56,22 @@ export function emitBookingEvent(booking) {
 /* ------------------------------------------------------------- sensors --- */
 
 /**
+ * The hour of the day at the spaces' own timezone.
+ *
+ * Not the server's: a host running in UTC would otherwise put the occupancy
+ * peak in the middle of the Indian night, which looks obviously wrong on a
+ * dashboard. Every seeded listing is in India, so the curve follows IST.
+ */
+const LOCAL_TZ = process.env.SPACE_TIMEZONE || 'Asia/Kolkata';
+
+function localHour(date = new Date()) {
+  const hour = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', hour12: false, timeZone: LOCAL_TZ,
+  }).format(date);
+  return Number(hour) % 24;
+}
+
+/**
  * Expected share of seats in use at a given hour, modelling a normal office
  * day: quiet early, busy mid-morning and mid-afternoon, dipping over lunch.
  */
@@ -81,7 +97,7 @@ export function tickOccupancy() {
   if (!spaces.length) return [];
 
   const date = today();
-  const hour = new Date().getHours();
+  const hour = localHour();
   const base = expectedLoad(hour);
 
   const booked = new Map(
@@ -117,6 +133,33 @@ export function tickOccupancy() {
     emitOccupancy(reading);
   }
   return readings;
+}
+
+/**
+ * Generate a reading on demand if the newest one has gone stale.
+ *
+ * A serverless runtime cannot hold an interval, so without this the occupancy
+ * feed would be frozen at whatever the snapshot contained. Calling this from
+ * the read paths keeps the telemetry moving along the same office-day curve,
+ * at the cost of doing the work when someone actually looks.
+ *
+ * On a long-lived process the interval has always just run, so this is a
+ * no-op there.
+ */
+export function refreshIfStale(maxAgeMs = 60_000) {
+  const latest = db
+    .prepare('SELECT recorded_at FROM occupancy_readings ORDER BY id DESC LIMIT 1')
+    .get();
+
+  if (latest) {
+    const at = new Date(
+      latest.recorded_at.includes('T') ? latest.recorded_at : `${latest.recorded_at.replace(' ', 'T')}Z`
+    ).getTime();
+    if (Number.isFinite(at) && Date.now() - at < maxAgeMs) return false;
+  }
+
+  tickOccupancy();
+  return true;
 }
 
 let timer = null;

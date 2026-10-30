@@ -296,7 +296,7 @@ function LiveMonitor({ seeded, bySpace, connected }) {
 export default function AdminDashboard() {
   const { data, error, loading, reload } = useFetch('/dashboard/admin');
   const [tab, setTab] = useState('overview');
-  const { bySpace, connected } = useMonitorFeed();
+  const { bySpace, connected } = useMonitorFeed({ poll: reload });
 
   if (loading) return <Loading label="Loading platform data…" />;
   if (error) {

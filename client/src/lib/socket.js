@@ -49,11 +49,25 @@ export function useSpaceOccupancy(spaceId, initial = null) {
  * Platform-wide monitor feed for the owner and admin dashboards.
  * Keeps the latest reading per space, plus a connection flag for the UI.
  */
-export function useMonitorFeed({ onBooking, onAvailability } = {}) {
+export function useMonitorFeed({ onBooking, onAvailability, poll } = {}) {
   const [bySpace, setBySpace] = useState({});
   const [connected, setConnected] = useState(false);
   const handlers = useRef({ onBooking, onAvailability });
   handlers.current = { onBooking, onAvailability };
+
+  /*
+   * Polling fallback. A serverless deployment cannot hold a WebSocket open,
+   * so when the socket does not connect the dashboard refetches on an
+   * interval instead. The feed keeps moving; it is just coarser.
+   */
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
+
+  useEffect(() => {
+    if (connected || !pollRef.current) return;
+    const id = setInterval(() => pollRef.current?.(), 20_000);
+    return () => clearInterval(id);
+  }, [connected]);
 
   useEffect(() => {
     const s = getSocket();

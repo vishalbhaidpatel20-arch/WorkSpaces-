@@ -24,3 +24,6 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# ...but the pre-seeded snapshot ships with the serverless deployment.
+!server/data/seed-snapshot.db

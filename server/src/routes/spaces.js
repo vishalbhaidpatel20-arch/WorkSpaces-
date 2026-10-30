@@ -8,7 +8,7 @@ import {
   availabilityRange, datesBetween, ensureAvailability, today, addDays,
 } from '../lib/spaces.js';
 import { scoreSpace } from '../lib/match.js';
-import { emitAvailability, emitOccupancy } from '../realtime.js';
+import { emitAvailability, emitOccupancy, refreshIfStale } from '../realtime.js';
 
 const router = Router();
 
@@ -337,6 +337,9 @@ router.get('/:id/occupancy', validate(z.object({
 }), 'query'), (req, res) => {
   const space = db.prepare('SELECT id, capacity FROM spaces WHERE id = ?').get(req.params.id);
   if (!space) throw new ApiError(404, 'Space not found');
+
+  // Keeps the feed live where no background interval can run.
+  refreshIfStale();
 
   const readings = db
     .prepare(`SELECT seats_occupied, seats_total, source, recorded_at

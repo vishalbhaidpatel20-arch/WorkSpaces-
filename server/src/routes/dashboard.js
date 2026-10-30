@@ -3,6 +3,7 @@ import db from '../lib/db.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { listNotifications } from '../lib/notify.js';
 import { today, addDays } from '../lib/spaces.js';
+import { refreshIfStale } from '../realtime.js';
 
 const router = Router();
 
@@ -53,6 +54,7 @@ router.get('/user', requireAuth, (req, res) => {
 /* ------------------------------------------------------------- owner --- */
 
 router.get('/owner', requireAuth, requireRole('owner'), (req, res) => {
+  refreshIfStale();
   const uid = req.user.id;
   const day = today();
 
@@ -146,6 +148,7 @@ router.get('/owner', requireAuth, requireRole('owner'), (req, res) => {
 /* ------------------------------------------------------------- admin --- */
 
 router.get('/admin', requireAuth, requireRole('admin'), (_req, res) => {
+  refreshIfStale();
   const day = today();
 
   const users = one(

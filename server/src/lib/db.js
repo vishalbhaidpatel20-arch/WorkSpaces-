@@ -1,12 +1,33 @@
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.DB_PATH || resolve(here, '../../data/app.db');
+const BUNDLED_SNAPSHOT = resolve(here, '../../data/seed-snapshot.db');
+
+/*
+ * On a serverless platform the deployment filesystem is read-only and only
+ * /tmp is writable, so the database lives there. /tmp is per-instance and is
+ * discarded when the instance is recycled, which makes this a demonstration
+ * environment, not a durable one: writes survive while an instance stays warm
+ * and are lost when it is not. A pre-seeded snapshot is copied in on first
+ * touch so a cold start serves real data immediately instead of an empty app.
+ *
+ * For durable hosting, run this as an ordinary Node process with a mounted
+ * disk and point DB_PATH at it - see render.yaml.
+ */
+export const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+const DB_PATH =
+  process.env.DB_PATH ||
+  (IS_SERVERLESS ? '/tmp/app.db' : resolve(here, '../../data/app.db'));
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
+
+if (IS_SERVERLESS && !existsSync(DB_PATH) && existsSync(BUNDLED_SNAPSHOT)) {
+  copyFileSync(BUNDLED_SNAPSHOT, DB_PATH);
+}
 
 export const db = new DatabaseSync(DB_PATH);
 
