@@ -1,9 +1,9 @@
 {
-  "name": "flexospaces-client",
+  "name": "workspace-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "React frontend for FlexoSpaces",
+  "description": "React frontend for WorkSpace",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

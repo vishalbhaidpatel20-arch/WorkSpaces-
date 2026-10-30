@@ -1,4 +1,4 @@
-# Scope — FlexoSpaces
+# Scope — WorkSpace
 
 **Project:** Smart Co-Working Space Management Using Real-Time Monitoring
 **Client brief:** Unified Mentor / Flexo Spaces
@@ -165,7 +165,7 @@ Additionally out of scope for Phase 1, and called out so nobody assumes otherwis
 | Fully functional web application | `server/`, `client/` |
 | Admin dashboard | `/admin` route |
 | API contract | `docs/openapi.yaml` |
-| Postman collection | `docs/postman/FlexoSpaces.postman_collection.json` |
+| Postman collection | `docs/postman/WorkSpace.postman_collection.json` |
 | Test cases | `docs/test-cases.md` |
 | Deployment guide | `docs/deployment.md` |
 | Build notes | `CLAUDE.md` |

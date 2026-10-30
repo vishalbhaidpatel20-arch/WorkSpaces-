@@ -1,4 +1,4 @@
-# Implementation plan — FlexoSpaces
+# Implementation plan — WorkSpace
 
 How the system was built, in the order it was built, with the decisions that
 shaped each stage. Phases 1–9 are **complete**; Phase 10 is the forward plan.

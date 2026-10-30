@@ -1,4 +1,4 @@
-# FlexoSpaces
+# WorkSpace
 
 **Smart Co-Working Space Management Using Real-Time Monitoring**
 
@@ -85,7 +85,7 @@ Password for all of them: `Password123`
 
 | Role | Email | Shows |
 |---|---|---|
-| **Admin** | `admin@flexospaces.com` | Platform KPIs, approval queue, users, live monitor |
+| **Admin** | `admin@workspace.com` | Platform KPIs, approval queue, users, live monitor |
 | **Owner** | `meera@workloft.in` | 4 listings, booking requests, per-floor occupancy |
 | **Member** | `ananya@brightpixel.io` | Team of 6, collaborative — bookings and inquiries |
 
@@ -225,7 +225,7 @@ headers being present.
 The Postman collection runs the same surface:
 
 ```bash
-postman collection run docs/postman/FlexoSpaces.postman_collection.json
+postman collection run docs/postman/WorkSpace.postman_collection.json
 # 43 requests, 22 assertions, 0 failures
 ```
 

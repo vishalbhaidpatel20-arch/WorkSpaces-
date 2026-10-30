@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'flexo.token';
+const TOKEN_KEY = 'workspace.token';
 
 /**
  * Where the API lives.

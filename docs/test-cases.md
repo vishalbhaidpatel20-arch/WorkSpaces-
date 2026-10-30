@@ -1,4 +1,4 @@
-# Test cases — FlexoSpaces
+# Test cases — WorkSpace
 
 ## Running the suite
 
@@ -103,7 +103,7 @@ seeded database.
 | BOOK-03 | Quote reports bookability | `bookable: true` | ✅ |
 | BOOK-04 | Booking without a token | 401 | ✅ |
 | BOOK-05 | Member creates a request | 201, status `pending` | ✅ |
-| BOOK-06 | Booking reference generated | Matches `FLX-…` | ✅ |
+| BOOK-06 | Booking reference generated | Matches `WS-…` | ✅ |
 | BOOK-07 | **Pending request holds seats immediately** | `seats_booked === 2` on the start date | ✅ |
 | BOOK-08 | Start date in the past | 422 | ✅ |
 | BOOK-09 | End date before start date | 422 | ✅ |

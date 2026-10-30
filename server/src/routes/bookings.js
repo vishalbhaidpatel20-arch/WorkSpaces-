@@ -13,7 +13,7 @@ import { emitAvailability, emitBookingEvent } from '../realtime.js';
 const router = Router();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format');
 
-const bookingCode = () => `FLX-${randomBytes(3).toString('hex').toUpperCase()}`;
+const bookingCode = () => `WS-${randomBytes(3).toString('hex').toUpperCase()}`;
 
 /**
  * Price a stay. Owners may publish a day rate; otherwise a 30-day month is

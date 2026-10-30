@@ -9,8 +9,8 @@ function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight text-ink">
       <span className="grid h-7 w-7 place-items-center rounded-lg bg-ink text-sm font-bold text-white"
-            aria-hidden="true">F</span>
-      <span>FlexoSpaces</span>
+            aria-hidden="true">W</span>
+      <span>WorkSpace</span>
     </Link>
   );
 }
@@ -176,7 +176,7 @@ export default function Layout() {
       <footer className="border-t border-ink/10 bg-surface">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-sm text-ink-muted
                         sm:flex-row sm:items-center sm:justify-between">
-          <p>FlexoSpaces — smart co-working discovery, booking and live occupancy monitoring.</p>
+          <p>WorkSpace — smart co-working discovery, booking and live occupancy monitoring.</p>
           <p>Built for the Unified Mentor capstone brief.</p>
         </div>
       </footer>

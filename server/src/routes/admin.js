@@ -53,7 +53,7 @@ router.patch('/users/:id/role', validate(z.object({
   notifyAll({
     user: updated,
     subject: 'Your account role changed',
-    body: `An administrator set your FlexoSpaces role to "${req.body.role}".`,
+    body: `An administrator set your WorkSpace role to "${req.body.role}".`,
   });
   res.json({ data: publicUser(updated) });
 });

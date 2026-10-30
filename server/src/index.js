@@ -177,7 +177,7 @@ app.get('/api/health', (_req, res) => {
     const { n: spaces } = db.prepare('SELECT COUNT(*) AS n FROM spaces').get();
     res.json({
       status: 'ok',
-      service: 'flexospaces-api',
+      service: 'workspace-api',
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       spaces,
@@ -230,7 +230,7 @@ const io = new SocketServer(server, {
 initRealtime(io, { simulate: process.env.OCCUPANCY_SIMULATION !== 'off' });
 
 server.listen(PORT, () => {
-  console.log(`FlexoSpaces API listening on http://localhost:${PORT}`);
+  console.log(`WorkSpace API listening on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Allowed origins: ${ORIGINS.join(', ')}`);
 });

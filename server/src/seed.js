@@ -56,7 +56,7 @@ const amenityIdBySlug = new Map(
 /* -------------------------------------------------------------- users --- */
 
 const USERS = [
-  { name: 'Platform Admin',  email: 'admin@flexospaces.com',  role: 'admin',
+  { name: 'Platform Admin',  email: 'admin@workspace.com',  role: 'admin',
     phone: '+91 98250 00001' },
 
   { name: 'Meera Shah',      email: 'meera@workloft.in',      role: 'owner',
@@ -339,7 +339,7 @@ for (const b of BOOKINGS) {
     ? Math.round(space.price_per_seat_month * b.seats * (days / 30))
     : dayRate * b.seats * days;
 
-  const code = `FLX-S${String(++seq).padStart(5, '0')}`;
+  const code = `WS-S${String(++seq).padStart(5, '0')}`;
   if (db.prepare('SELECT id FROM bookings WHERE code = ?').get(code)) continue;
 
   insertBooking.run(code, spaceId, userIdByEmail.get(b.user), start, end, b.seats, total,
@@ -446,7 +446,7 @@ Seed complete
   readings     ${count('occupancy_readings')}
 
 Demo logins (password for every account: ${DEMO_PASSWORD})
-  Admin   admin@flexospaces.com
+  Admin   admin@workspace.com
   Owner   meera@workloft.in      (WorkLoft, 4 listings)
   Owner   rohan@hivedesks.in     (Hive Desks, 4 listings)
   Owner   kabir@nexushubs.in     (Nexus Hubs, 4 listings)

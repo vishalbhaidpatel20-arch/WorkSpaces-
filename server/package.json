@@ -1,9 +1,9 @@
 {
-  "name": "flexospaces-server",
+  "name": "workspace-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "REST API for FlexoSpaces - Smart Co-Working Space Management",
+  "description": "REST API for WorkSpace - Smart Co-Working Space Management",
   "main": "src/index.js",
   "scripts": {
     "dev": "node --watch src/index.js",

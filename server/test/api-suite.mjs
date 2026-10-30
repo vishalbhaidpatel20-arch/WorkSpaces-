@@ -24,14 +24,14 @@ const login = async (email) =>
   (await req('POST', '/auth/login', { body: { email, password: 'Password123' } })).json;
 
 console.log('\n== auth ==');
-const bad = await req('POST', '/auth/login', { body: { email: 'admin@flexospaces.com', password: 'wrong' } });
+const bad = await req('POST', '/auth/login', { body: { email: 'admin@workspace.com', password: 'wrong' } });
 check('wrong password -> 401', bad.status === 401, JSON.stringify(bad.json));
 
 const member = await login('ananya@brightpixel.io');
 check('member login returns token + role', !!member.token && member.user.role === 'user');
 const owner = await login('meera@workloft.in');
 check('owner login', owner.user.role === 'owner');
-const admin = await login('admin@flexospaces.com');
+const admin = await login('admin@workspace.com');
 check('admin login', admin.user.role === 'admin');
 
 const noAuth = await req('GET', '/auth/me');
@@ -147,7 +147,7 @@ const booking = await req('POST', '/bookings', { token: member.token,
           notes: 'Two of us trying the floor' } });
 check('member creates a pending booking',
   booking.status === 201 && booking.json.data.status === 'pending', JSON.stringify(booking.json));
-check('booking gets a human-readable code', /^FLX-/.test(booking.json.data.code || ''));
+check('booking gets a human-readable code', /^WS-/.test(booking.json.data.code || ''));
 
 const afterHold = await req('GET', `/spaces/${spaceId}/availability?start=${iso(60)}&end=${iso(60)}`);
 check('pending booking immediately holds the seats',

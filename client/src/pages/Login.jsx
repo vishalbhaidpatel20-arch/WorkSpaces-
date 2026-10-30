@@ -5,7 +5,7 @@ import { ErrorBanner, Spinner } from '../components/ui.jsx';
 
 /** Seeded accounts, so a reviewer can try each role without signing up. */
 const DEMO = [
-  ['admin@flexospaces.com', 'Admin', 'Approvals, users, platform KPIs'],
+  ['admin@workspace.com', 'Admin', 'Approvals, users, platform KPIs'],
   ['meera@workloft.in', 'Space owner', '4 listings, live occupancy, booking requests'],
   ['ananya@brightpixel.io', 'Member', 'Team of 6, collaborative work style'],
 ];

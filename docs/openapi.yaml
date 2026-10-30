@@ -1,10 +1,10 @@
 openapi: 3.1.0
 
 info:
-  title: FlexoSpaces API
+  title: WorkSpace API
   version: 1.0.0
   description: |
-    REST API for FlexoSpaces — Smart Co-Working Space Management Using
+    REST API for WorkSpace — Smart Co-Working Space Management Using
     Real-Time Monitoring.
 
     ## Authentication
@@ -1291,7 +1291,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        code: { type: string, example: FLX-A1B2C3 }
+        code: { type: string, example: WS-A1B2C3 }
         space_id: { type: integer }
         space_name: { type: string }
         space_city: { type: string }

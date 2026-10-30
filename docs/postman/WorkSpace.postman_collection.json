@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "FlexoSpaces API",
-    "description": "Runnable requests for the FlexoSpaces co-working platform API.\n\n## Setup\n1. Start the API: `cd server && npm run seed:fresh && npm start`\n2. Import this collection and set the `baseUrl` variable (default `http://localhost:4000/api`).\n3. Run **Auth > Login (member)**, **Login (owner)** or **Login (admin)** — each stores its token in a collection variable automatically, so every other request is ready to send.\n\n## Order\nThe folders are ordered to work top to bottom: sign in, search, match, book, decide, then administer. `Bookings > Request a booking` saves `bookingId` for the confirm/decline/cancel requests below it.\n\nAll seeded accounts use the password `Password123`.",
+    "name": "WorkSpace API",
+    "description": "Runnable requests for the WorkSpace co-working platform API.\n\n## Setup\n1. Start the API: `cd server && npm run seed:fresh && npm start`\n2. Import this collection and set the `baseUrl` variable (default `http://localhost:4000/api`).\n3. Run **Auth > Login (member)**, **Login (owner)** or **Login (admin)** — each stores its token in a collection variable automatically, so every other request is ready to send.\n\n## Order\nThe folders are ordered to work top to bottom: sign in, search, match, book, decide, then administer. `Bookings > Request a booking` saves `bookingId` for the confirm/decline/cancel requests below it.\n\nAll seeded accounts use the password `Password123`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -101,7 +101,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@flexospaces.com\",\n  \"password\": \"Password123\"\n}"
+              "raw": "{\n  \"email\": \"admin@workspace.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
           },

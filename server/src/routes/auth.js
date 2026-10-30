@@ -36,7 +36,7 @@ router.post('/register', validate(registerSchema), (req, res) => {
 
   notify({
     user,
-    subject: 'Welcome to FlexoSpaces',
+    subject: 'Welcome to WorkSpace',
     body: `Hi ${user.name}, your ${user.role === 'owner' ? 'space owner' : 'member'} account is ready.`,
   });
 

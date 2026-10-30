@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Build notes and working conventions for FlexoSpaces. Read this before changing
+Build notes and working conventions for WorkSpace. Read this before changing
 code — it records the decisions that are easy to undo by accident.
 
 ---

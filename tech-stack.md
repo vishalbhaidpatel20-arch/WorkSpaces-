@@ -1,4 +1,4 @@
-# Technology stack — FlexoSpaces
+# Technology stack — WorkSpace
 
 Every choice below is listed with the reason it was made and, where a different
 option was reasonable, what was rejected and why.

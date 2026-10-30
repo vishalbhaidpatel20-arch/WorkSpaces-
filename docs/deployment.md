@@ -1,4 +1,4 @@
-# Deployment guide — FlexoSpaces
+# Deployment guide — WorkSpace
 
 Covers local setup, environment configuration, production deployment, and the
 PostgreSQL migration path.
@@ -42,7 +42,7 @@ Every seeded account uses the password `Password123`.
 
 | Role | Email | What it shows |
 |---|---|---|
-| Admin | `admin@flexospaces.com` | KPIs, approval queue, user management, live monitor |
+| Admin | `admin@workspace.com` | KPIs, approval queue, user management, live monitor |
 | Owner | `meera@workloft.in` | 4 listings, booking requests, occupancy |
 | Owner | `rohan@hivedesks.in` | 4 listings including the pending one |
 | Owner | `kabir@nexushubs.in` | 4 listings |
@@ -110,7 +110,7 @@ API_URL=https://api.example.com npm test
 The Postman collection runs the same way:
 
 ```bash
-postman collection run docs/postman/FlexoSpaces.postman_collection.json
+postman collection run docs/postman/WorkSpace.postman_collection.json
 # 43 requests, 22 assertions
 ```
 
@@ -161,14 +161,14 @@ Run it under a supervisor (systemd, PM2, or a container restart policy).
 
 ```ini
 [Unit]
-Description=FlexoSpaces API
+Description=WorkSpace API
 After=network.target
 
 [Service]
 Type=simple
-User=flexo
-WorkingDirectory=/srv/flexospaces/server
-EnvironmentFile=/srv/flexospaces/server/.env
+User=workspace
+WorkingDirectory=/srv/workspace/server
+EnvironmentFile=/srv/workspace/server/.env
 ExecStart=/usr/bin/node src/index.js
 Restart=always
 RestartSec=5
