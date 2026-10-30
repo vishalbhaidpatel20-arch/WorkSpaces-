@@ -8,16 +8,19 @@ import { Spinner } from './ui.jsx';
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight text-ink">
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm font-bold text-white"
+      <span className="grid h-7 w-7 place-items-center rounded-lg bg-ink text-sm font-bold text-white"
             aria-hidden="true">F</span>
       <span>FlexoSpaces</span>
     </Link>
   );
 }
 
+// The active tab is marked by ink weight and a wash, never by a hue.
 const linkCls = ({ isActive }) =>
-  `rounded-lg px-3 py-2 text-sm font-medium transition ${
-    isActive ? 'bg-brand-wash text-brand-dark' : 'text-ink-soft hover:bg-ink/5 hover:text-ink'}`;
+  `rounded-lg px-3 py-2 text-sm transition ${
+    isActive
+      ? 'bg-brand-wash font-semibold text-ink'
+      : 'font-medium text-ink-soft hover:bg-ink/5 hover:text-ink'}`;
 
 function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -32,7 +35,7 @@ function NotificationBell() {
     <div className="relative">
       <button onClick={() => setOpen((o) => !o)} aria-label="Notifications" aria-expanded={open}
               className="rounded-lg px-2.5 py-2 text-ink-soft hover:bg-ink/5">
-        <span aria-hidden="true">🔔</span>
+        <span aria-hidden="true" className="glyph">🔔</span>
       </button>
       {open && (
         <>
@@ -75,7 +78,7 @@ function UserMenu() {
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
               className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 hover:bg-ink/5">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-wash text-xs
-                         font-bold text-brand-dark" aria-hidden="true">{initials}</span>
+                         font-bold text-ink" aria-hidden="true">{initials}</span>
         <span className="hidden text-sm font-medium text-ink sm:block">{user.name.split(' ')[0]}</span>
         <span aria-hidden="true" className="text-[10px] text-ink-muted">▾</span>
       </button>
@@ -86,7 +89,7 @@ function UserMenu() {
             <div className="border-b border-ink/8 px-2.5 pb-2 pt-1.5">
               <p className="truncate text-sm font-semibold text-ink">{user.name}</p>
               <p className="truncate text-xs text-ink-muted">{user.email}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-brand-dark">
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink">
                 {user.role === 'user' ? 'Member' : user.role}
               </p>
             </div>
@@ -103,7 +106,7 @@ function UserMenu() {
             ))}
             <button onClick={() => { setOpen(false); logout(); navigate('/'); }}
                     className="mt-1 block w-full rounded-md border-t border-ink/8 px-2.5 py-2
-                               text-left text-sm text-critical hover:bg-critical/5">
+                               text-left text-sm text-ink hover:bg-plane/5">
               Sign out
             </button>
           </div>
@@ -131,7 +134,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b border-ink/10 bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-ink/8 bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4">
           <Logo />
           <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Main">{nav}</nav>

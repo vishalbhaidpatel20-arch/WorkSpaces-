@@ -62,7 +62,7 @@ export default function SpaceForm() {
 
   const fieldErrors = err?.fieldErrors || {};
   const Err = ({ field }) =>
-    fieldErrors[field] ? <p className="mt-1 text-xs text-critical">{fieldErrors[field]}</p> : null;
+    fieldErrors[field] ? <p className="mt-1 text-xs text-ink">{fieldErrors[field]}</p> : null;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -256,9 +256,9 @@ export default function SpaceForm() {
                         aria-pressed={on}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1
                                     text-xs font-medium transition ${
-                          on ? 'border-brand bg-brand-wash text-brand-dark'
+                          on ? 'border-ink bg-brand-wash text-ink'
                              : 'border-ink/12 text-ink-soft hover:bg-ink/5'}`}>
-                  <span aria-hidden="true">{a.icon}</span>{a.name}{on && <span aria-hidden="true">✓</span>}
+                  <span aria-hidden="true" className="glyph">{a.icon}</span>{a.name}{on && <span aria-hidden="true">✓</span>}
                 </button>
               );
             })}
@@ -267,7 +267,7 @@ export default function SpaceForm() {
 
         <ErrorBanner error={err?.status === 422 ? null : err} />
         {err?.status === 422 && (
-          <p className="text-sm text-critical">
+          <p className="text-sm text-ink">
             Some fields need attention — see the messages above.
           </p>
         )}

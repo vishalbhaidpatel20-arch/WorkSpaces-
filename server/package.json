@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "seed": "node src/seed.js",
     "test": "node test/api-suite.mjs",
-    "seed:fresh": "node src/seed.js --fresh"
+    "seed:fresh": "node src/seed.js --fresh",
+    "start:test": "node -e \"process.env.OCCUPANCY_SIMULATION=(process.env.OCCUPANCY_SIMULATION||'off');process.env.RATE_LIMIT='off';import('./src/index.js')\""
   },
   "engines": {
     "node": ">=22.5.0"

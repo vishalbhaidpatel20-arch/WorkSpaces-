@@ -20,8 +20,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
  */
 export function StatTile({ label, value, sub, delta, deltaTone = 'neutral', icon }) {
   const toneCls = {
-    good: 'text-good-ink',
-    critical: 'text-critical',
+    good: 'text-ink',
+    critical: 'text-ink',
     neutral: 'text-ink-soft',
   }[deltaTone];
 
@@ -29,7 +29,7 @@ export function StatTile({ label, value, sub, delta, deltaTone = 'neutral', icon
     <div className="card p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
-        {icon && <span aria-hidden="true" className="text-base leading-none">{icon}</span>}
+        {icon && <span aria-hidden="true" className="glyph text-base leading-none">{icon}</span>}
       </div>
       <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-ink-soft">{sub}</p>}
@@ -259,7 +259,7 @@ export function AvailabilityStrip({ days, onPick, selected }) {
           : ratio < 0.25 ? 'tight' : 'open';
         const styles = {
           open: 'bg-series text-white',
-          tight: 'bg-series-weak text-brand-dark',
+          tight: 'bg-series-weak text-ink',
           full: 'bg-track text-ink-muted line-through',
         }[state];
         const isSel = selected === d.date;
@@ -269,7 +269,7 @@ export function AvailabilityStrip({ days, onPick, selected }) {
                   disabled={state === 'full'}
                   title={`${d.date}: ${d.seats_available} of ${d.seats_total} seats free (${state})`}
                   className={`tabular h-7 w-9 rounded text-[11px] font-semibold transition
-                              ${styles} ${isSel ? 'ring-2 ring-brand ring-offset-1' : ''}
+                              ${styles} ${isSel ? 'ring-2 ring-ink ring-offset-1' : ''}
                               ${state === 'full' ? 'cursor-not-allowed' : 'hover:opacity-85'}`}>
             {Number(d.date.slice(8, 10))}
           </button>

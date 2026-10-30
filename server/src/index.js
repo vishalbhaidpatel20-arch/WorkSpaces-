@@ -97,12 +97,31 @@ app.use(helmet({
 }));
 app.use(compression());
 
+/**
+ * In development any loopback origin is allowed, because the dev server hops
+ * ports whenever one is busy (5173 -> 5174 -> …) and a fixed allowlist turns
+ * that into a confusing 500 on the first POST. Production stays strict: only
+ * the configured origins.
+ */
+const LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+function isAllowedOrigin(origin) {
+  if (ORIGINS.includes(origin)) return true;
+  return !IS_PROD && LOOPBACK.test(origin);
+}
+
 app.use(cors({
   origin(origin, callback) {
     // Same-origin and non-browser clients (curl, mobile, server-to-server)
     // send no Origin header; those are not the case CORS protects against.
-    if (!origin || ORIGINS.includes(origin)) return callback(null, true);
-    callback(new Error(`Origin ${origin} is not allowed`));
+    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
+    // A blocked origin is a refusal, not a server fault - say so with a 403
+    // rather than letting it surface as "Internal server error".
+    const err = new Error(
+      `Origin ${origin} is not allowed. Add it to CORS_ORIGIN.`
+    );
+    err.status = 403;
+    callback(err);
   },
   credentials: true,
 }));
@@ -201,7 +220,12 @@ app.use(errorHandler);
 
 const server = http.createServer(app);
 const io = new SocketServer(server, {
-  cors: { origin: ORIGINS, credentials: true },
+  // Same origin rule as the REST layer, so the live feed never fails on a
+  // port the API would otherwise accept.
+  cors: {
+    origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
+    credentials: true,
+  },
 });
 initRealtime(io, { simulate: process.env.OCCUPANCY_SIMULATION !== 'off' });
 

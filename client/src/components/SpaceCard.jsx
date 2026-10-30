@@ -14,11 +14,13 @@ export function MatchBadge({ match, expandable = true }) {
   const [open, setOpen] = useState(false);
   if (!match) return null;
 
+  // Fit is a four-step ramp in ink weight: the better the match, the heavier
+  // the chip reads. The percentage and the word carry the meaning regardless.
   const tone = {
-    excellent: 'border-good/40 bg-good/10 text-good-ink',
-    good: 'border-brand/30 bg-brand-wash text-brand-dark',
-    fair: 'border-warning/45 bg-warning/15 text-ink',
-    poor: 'border-ink/15 bg-ink/5 text-ink-soft',
+    excellent: 'border-ink bg-ink text-surface',
+    good: 'border-ink/45 bg-surface text-ink',
+    fair: 'border-ink/20 bg-plane text-ink-soft',
+    poor: 'border-ink/12 bg-plane text-ink-muted',
   }[match.fit];
 
   return (
@@ -59,7 +61,7 @@ function Thumb({ space }) {
   if (!space.image_url || failed) {
     return (
       <div className="flex h-40 w-full items-center justify-center bg-gradient-to-br
-                      from-brand-wash to-track text-2xl font-bold text-brand-dark"
+                      from-brand-wash to-track text-2xl font-bold text-ink"
            aria-hidden="true">
         {initials}
       </div>
@@ -76,7 +78,7 @@ export default function SpaceCard({ space, showMatch = true }) {
   const live = space.live_occupancy;
 
   return (
-    <article className="card group flex flex-col overflow-hidden transition hover:shadow-md">
+    <article className="card card-interactive group flex flex-col overflow-hidden">
       <Link to={`/spaces/${space.id}`} className="relative block">
         <Thumb space={space} />
         {avail && (
@@ -92,7 +94,7 @@ export default function SpaceCard({ space, showMatch = true }) {
         <header className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-ink">
-              <Link to={`/spaces/${space.id}`} className="hover:text-brand">{space.name}</Link>
+              <Link to={`/spaces/${space.id}`} className="hover:text-ink">{space.name}</Link>
             </h3>
             <p className="truncate text-sm text-ink-soft">
               {space.locality ? `${space.locality}, ` : ''}{space.city}
@@ -123,7 +125,7 @@ export default function SpaceCard({ space, showMatch = true }) {
           {styleLabel(space.work_style) && <Badge>{styleLabel(space.work_style)}</Badge>}
           {space.amenities?.slice(0, 3).map((a) => (
             <Badge key={a.slug}>
-              <span aria-hidden="true">{a.icon}</span> {a.name}
+              <span aria-hidden="true" className="glyph">{a.icon}</span> {a.name}
             </Badge>
           ))}
           {space.amenities?.length > 3 && <Badge>+{space.amenities.length - 3} more</Badge>}
@@ -131,7 +133,7 @@ export default function SpaceCard({ space, showMatch = true }) {
 
         {live && (
           <p className="text-xs text-ink-soft">
-            <span aria-hidden="true" className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-good align-middle" />
+            <span aria-hidden="true" className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink align-middle" />
             Live: <span className="tabular font-semibold text-ink">{live.percent}%</span> of seats in use
           </p>
         )}

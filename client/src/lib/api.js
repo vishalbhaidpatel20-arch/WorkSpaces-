@@ -1,5 +1,17 @@
 const TOKEN_KEY = 'flexo.token';
 
+/**
+ * Where the API lives.
+ *
+ * Empty by default, which keeps requests same-origin: in development the Vite
+ * proxy forwards /api to localhost:4000, and in a single-origin deployment the
+ * API serves the built SPA itself. Set VITE_API_URL at build time when the SPA
+ * and the API are on different hosts (for example the SPA on a static host and
+ * the API on a container platform) - that origin must also appear in the API's
+ * CORS_ORIGIN allowlist.
+ */
+export const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
@@ -20,7 +32,7 @@ export class ApiError extends Error {
 
 async function request(method, path, body, { signal } = {}) {
   const token = getToken();
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}/api${path}`, {
     method,
     signal,
     headers: {

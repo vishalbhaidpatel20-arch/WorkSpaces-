@@ -67,7 +67,7 @@ function Approvals({ pending, onChange }) {
             <li key={s.id} className="card flex flex-wrap items-start gap-4 p-4">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link to={`/spaces/${s.id}`} className="font-semibold text-ink hover:text-brand">
+                  <Link to={`/spaces/${s.id}`} className="font-semibold text-ink hover:text-ink">
                     {s.name}
                   </Link>
                   <StatusPill status={s.status} />
@@ -235,7 +235,7 @@ function AllSpaces() {
               {data.data.map((s) => (
                 <tr key={s.id} className="hover:bg-ink/[0.02]">
                   <td className="px-4 py-2.5">
-                    <Link to={`/spaces/${s.id}`} className="font-medium text-ink hover:text-brand">
+                    <Link to={`/spaces/${s.id}`} className="font-medium text-ink hover:text-ink">
                       {s.name}
                     </Link>
                     <p className="text-xs text-ink-muted">
@@ -321,11 +321,11 @@ export default function AdminDashboard() {
                   aria-current={tab === key ? 'page' : undefined}
                   className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-semibold transition ${
                     tab === key
-                      ? 'border-brand text-brand-dark'
+                      ? 'border-ink text-ink'
                       : 'border-transparent text-ink-soft hover:text-ink'}`}>
             {label}
             {key === 'approvals' && k.spaces_awaiting_approval > 0 && (
-              <span className="tabular ml-1.5 rounded-full bg-warning/25 px-1.5 text-xs">
+              <span className="tabular ml-1.5 rounded-full bg-ink px-1.5 text-xs text-surface">
                 {k.spaces_awaiting_approval}
               </span>
             )}
@@ -395,7 +395,7 @@ export default function AdminDashboard() {
                     {d.top_spaces.map((s) => (
                       <tr key={s.id}>
                         <td className="py-2 pr-4">
-                          <Link to={`/spaces/${s.id}`} className="font-medium text-ink hover:text-brand">
+                          <Link to={`/spaces/${s.id}`} className="font-medium text-ink hover:text-ink">
                             {s.name}
                           </Link>
                         </td>

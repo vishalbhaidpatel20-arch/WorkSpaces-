@@ -31,7 +31,7 @@ export default function FilterPanel({ value, onChange, options, onReset, resultC
           Filters {active > 0 && <span className="tabular text-ink-muted">({active})</span>}
         </h2>
         {active > 0 && (
-          <button onClick={onReset} className="text-xs font-semibold text-brand hover:underline">
+          <button onClick={onReset} className="text-xs font-semibold text-ink hover:underline">
             Clear all
           </button>
         )}
@@ -74,7 +74,7 @@ export default function FilterPanel({ value, onChange, options, onReset, resultC
           Budget per seat / month
           {value.budget && <span className="tabular ml-1 font-normal text-ink-muted">₹{Number(value.budget).toLocaleString('en-IN')}</span>}
         </label>
-        <input id="f-budget" type="range" className="w-full accent-[var(--color-brand)]"
+        <input id="f-budget" type="range" className="w-full accent-[var(--color-ink)]"
                min={options?.min_price ?? 2000} max={options?.max_price ?? 25000} step="500"
                value={value.budget || options?.max_price || 25000}
                onChange={(e) => set({ budget: e.target.value })} />
@@ -123,9 +123,9 @@ export default function FilterPanel({ value, onChange, options, onReset, resultC
                       aria-pressed={on}
                       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1
                                   text-xs font-medium transition ${
-                        on ? 'border-brand bg-brand-wash text-brand-dark'
+                        on ? 'border-ink bg-brand-wash text-ink'
                            : 'border-ink/12 text-ink-soft hover:bg-ink/5'}`}>
-                <span aria-hidden="true">{a.icon}</span>
+                <span aria-hidden="true" className="glyph">{a.icon}</span>
                 {a.name}
                 {on && <span aria-hidden="true">✓</span>}
               </button>

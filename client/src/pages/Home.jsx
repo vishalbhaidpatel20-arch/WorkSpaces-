@@ -54,8 +54,8 @@ export default function Home() {
       <section className="border-b border-ink/10 bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16">
           <div className="max-w-3xl">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand/20
-                          bg-brand-wash px-3 py-1 text-xs font-semibold text-brand-dark">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-ink/20
+                          bg-brand-wash px-3 py-1 text-xs font-semibold text-ink">
               <span aria-hidden="true">◉</span> Live availability and occupancy monitoring
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
@@ -96,7 +96,7 @@ export default function Home() {
              'Share your team size, work style and expectations up front, and reach the space manager directly.'],
           ].map(([icon, title, body]) => (
             <article key={title} className="card p-5">
-              <span aria-hidden="true" className="text-xl">{icon}</span>
+              <span aria-hidden="true" className="glyph text-xl">{icon}</span>
               <h3 className="mt-2 font-semibold text-ink">{title}</h3>
               <p className="mt-1 text-sm text-ink-soft">{body}</p>
             </article>

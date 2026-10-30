@@ -3,10 +3,10 @@
 ## Running the suite
 
 ```bash
-# terminal 1 — deterministic API (telemetry simulator off)
+# terminal 1 — deterministic API (telemetry simulator and rate limits off)
 cd server
 npm run seed:fresh
-OCCUPANCY_SIMULATION=off npm start
+npm run start:test
 
 # terminal 2
 cd server

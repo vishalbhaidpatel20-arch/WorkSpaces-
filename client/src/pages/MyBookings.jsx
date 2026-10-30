@@ -90,7 +90,7 @@ export default function MyBookings() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link to={`/spaces/${b.space_id}`}
-                          className="font-semibold text-ink hover:text-brand">
+                          className="font-semibold text-ink hover:text-ink">
                       {b.space_name}
                     </Link>
                     <StatusPill status={b.status} />
@@ -108,7 +108,7 @@ export default function MyBookings() {
                     <p className="mt-2 rounded-lg bg-plane p-2 text-sm text-ink-soft">“{b.notes}”</p>
                   )}
                   {b.decline_reason && (
-                    <p className="mt-2 rounded-lg bg-critical/5 p-2 text-sm text-ink">
+                    <p className="mt-2 rounded-lg bg-plane/5 p-2 text-sm text-ink">
                       <span className="font-semibold">Declined: </span>{b.decline_reason}
                     </p>
                   )}

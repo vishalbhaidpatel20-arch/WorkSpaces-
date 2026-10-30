@@ -156,7 +156,7 @@ export default function OwnerSpaces() {
             <li key={s.id} className="card flex flex-wrap items-start gap-4 p-4">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link to={`/spaces/${s.id}`} className="font-semibold text-ink hover:text-brand">
+                  <Link to={`/spaces/${s.id}`} className="font-semibold text-ink hover:text-ink">
                     {s.name}
                   </Link>
                   <StatusPill status={s.status} />
@@ -167,7 +167,7 @@ export default function OwnerSpaces() {
                 {s.live_occupancy && (
                   <p className="mt-1 text-xs text-ink-muted">
                     <span aria-hidden="true"
-                          className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-good align-middle" />
+                          className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink align-middle" />
                     Live: <span className="tabular font-semibold text-ink">{s.live_occupancy.percent}%</span>{' '}
                     ({s.live_occupancy.seats_occupied}/{s.live_occupancy.seats_total} seats)
                   </p>

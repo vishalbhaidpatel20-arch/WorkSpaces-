@@ -41,3 +41,4 @@ export function publicUser(row) {
   const { password_hash, ...safe } = row;
   return safe;
 }
+

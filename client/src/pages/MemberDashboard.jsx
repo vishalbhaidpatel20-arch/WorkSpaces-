@@ -62,7 +62,7 @@ export default function MemberDashboard() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link to={`/spaces/${b.space_id}`}
-                              className="font-semibold text-ink hover:text-brand">
+                              className="font-semibold text-ink hover:text-ink">
                           {b.space_name}
                         </Link>
                         <StatusPill status={b.status} />

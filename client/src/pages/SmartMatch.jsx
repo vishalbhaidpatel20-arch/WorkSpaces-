@@ -63,7 +63,7 @@ function PeerTeams() {
             <li key={p.id} className="card p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="truncate font-semibold text-ink">{p.company || p.name}</p>
-                <span className="tabular shrink-0 text-sm font-semibold text-brand-dark">
+                <span className="tabular shrink-0 text-sm font-semibold text-ink">
                   {p.affinity_score}%
                 </span>
               </div>
@@ -75,7 +75,7 @@ function PeerTeams() {
                 <ul className="mt-2 flex flex-col gap-1">
                   {p.shared.map((s, i) => (
                     <li key={i} className="flex gap-1.5 text-xs text-ink-soft">
-                      <span aria-hidden="true" className="text-good-ink">✓</span>{s}
+                      <span aria-hidden="true" className="text-ink">✓</span>{s}
                     </li>
                   ))}
                 </ul>
@@ -223,9 +223,9 @@ export default function SmartMatch() {
                             aria-pressed={on}
                             className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1
                                         text-xs font-medium transition ${
-                              on ? 'border-brand bg-brand-wash text-brand-dark'
+                              on ? 'border-ink bg-brand-wash text-ink'
                                  : 'border-ink/12 text-ink-soft hover:bg-ink/5'}`}>
-                      <span aria-hidden="true">{a.icon}</span>{a.name}{on && <span aria-hidden="true">✓</span>}
+                      <span aria-hidden="true" className="glyph">{a.icon}</span>{a.name}{on && <span aria-hidden="true">✓</span>}
                     </button>
                   );
                 })}

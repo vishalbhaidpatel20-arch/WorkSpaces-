@@ -299,7 +299,7 @@ export default function SpaceDetail() {
       <div className="mx-auto max-w-2xl px-4 py-16">
         <ErrorBanner error={error} onRetry={reload} />
         <p className="mt-4 text-center text-sm text-ink-soft">
-          <Link to="/spaces" className="font-semibold text-brand hover:underline">
+          <Link to="/spaces" className="font-semibold text-ink hover:underline">
             Back to all spaces
           </Link>
         </p>
@@ -313,7 +313,7 @@ export default function SpaceDetail() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-7">
       <nav className="mb-4 text-sm text-ink-muted" aria-label="Breadcrumb">
-        <Link to="/spaces" className="hover:text-brand">Spaces</Link>
+        <Link to="/spaces" className="hover:text-ink">Spaces</Link>
         <span aria-hidden="true" className="mx-1.5">/</span>
         <span className="text-ink-soft">{space.city}</span>
         <span aria-hidden="true" className="mx-1.5">/</span>
@@ -357,7 +357,7 @@ export default function SpaceDetail() {
                  className="h-72 w-full rounded-xl border border-ink/10 object-cover sm:h-96" />
           ) : (
             <div className="grid h-56 w-full place-items-center rounded-xl border border-ink/10
-                            bg-gradient-to-br from-brand-wash to-track text-4xl font-bold text-brand-dark"
+                            bg-gradient-to-br from-brand-wash to-track text-4xl font-bold text-ink"
                  aria-hidden="true">
               {space.name.slice(0, 2).toUpperCase()}
             </div>
@@ -393,7 +393,7 @@ export default function SpaceDetail() {
                 {space.amenities.map((a) => (
                   <li key={a.slug}
                       className="flex items-center gap-2 rounded-lg border border-ink/10 bg-surface px-3 py-2">
-                    <span aria-hidden="true">{a.icon}</span>
+                    <span aria-hidden="true" className="glyph">{a.icon}</span>
                     <span className="text-sm text-ink">{a.name}</span>
                   </li>
                 ))}
@@ -421,7 +421,7 @@ export default function SpaceDetail() {
                     </div>
                     <p className="text-xs text-ink-muted">
                       <span aria-hidden="true"
-                            className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-good align-middle" />
+                            className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-ink align-middle" />
                       Updated {timeLabel(current.recorded_at)}
                     </p>
                   </div>
@@ -494,7 +494,7 @@ export default function SpaceDetail() {
             </button>
             {!user && (
               <p className="text-center text-xs text-ink-muted">
-                <Link to="/login" className="font-semibold text-brand hover:underline">Sign in</Link>
+                <Link to="/login" className="font-semibold text-ink hover:underline">Sign in</Link>
                 {' '}to send an inquiry or request a booking.
               </p>
             )}

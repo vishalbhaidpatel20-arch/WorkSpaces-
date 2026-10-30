@@ -23,9 +23,10 @@ export function Loading({ label = 'Loading…' }) {
 export function ErrorBanner({ error, onRetry }) {
   if (!error) return null;
   return (
-    <div className="card flex flex-wrap items-center gap-3 border-critical/30 bg-critical/5 p-4"
+    // Errors are marked by a heavier border and a glyph, not by red.
+    <div className="card flex flex-wrap items-center gap-3 border-ink/45 bg-plane p-4"
          role="alert">
-      <span aria-hidden="true" className="text-critical">⚠</span>
+      <span aria-hidden="true" className="text-ink">⚠</span>
       <p className="flex-1 text-sm text-ink">{error.message || String(error)}</p>
       {onRetry && <button className="btn btn-ghost" onClick={onRetry}>Try again</button>}
     </div>
@@ -35,7 +36,7 @@ export function ErrorBanner({ error, onRetry }) {
 export function EmptyState({ icon = '🔍', title, hint, action }) {
   return (
     <div className="card flex flex-col items-center gap-2 px-6 py-14 text-center">
-      <span className="text-3xl" aria-hidden="true">{icon}</span>
+      <span className="glyph text-3xl" aria-hidden="true">{icon}</span>
       <h3 className="text-base font-semibold text-ink">{title}</h3>
       {hint && <p className="max-w-md text-sm text-ink-soft">{hint}</p>}
       {action && <div className="mt-3">{action}</div>}
@@ -46,30 +47,42 @@ export function EmptyState({ icon = '🔍', title, hint, action }) {
 /* --------------------------------------------------------------- chips --- */
 
 /**
- * Status chip. Status colour never carries meaning alone - every chip pairs a
- * glyph with the status word.
+ * Status chip.
+ *
+ * The palette is monochrome on purpose, so state is carried by three channels
+ * that all survive greyscale and forced-colours: a glyph, the status word, and
+ * fill weight. The weight scale runs solid-ink (settled) -> outlined (waiting)
+ * -> muted (closed), which reads as importance rather than as category.
  */
 const STATUS_STYLES = {
-  confirmed: { cls: 'text-good-ink bg-good/10 border-good/30', icon: '✓' },
-  active: { cls: 'text-good-ink bg-good/10 border-good/30', icon: '✓' },
-  available: { cls: 'text-good-ink bg-good/10 border-good/30', icon: '✓' },
-  responded: { cls: 'text-good-ink bg-good/10 border-good/30', icon: '✓' },
-  completed: { cls: 'text-ink-soft bg-ink/5 border-ink/15', icon: '✓' },
-  closed: { cls: 'text-ink-soft bg-ink/5 border-ink/15', icon: '•' },
-  pending: { cls: 'text-ink bg-warning/15 border-warning/40', icon: '⏳' },
-  open: { cls: 'text-ink bg-warning/15 border-warning/40', icon: '⏳' },
-  cancelled: { cls: 'text-ink bg-serious/15 border-serious/40', icon: '⊘' },
-  suspended: { cls: 'text-ink bg-serious/15 border-serious/40', icon: '⊘' },
-  rejected: { cls: 'text-critical bg-critical/8 border-critical/30', icon: '✕' },
-  full: { cls: 'text-critical bg-critical/8 border-critical/30', icon: '✕' },
-  blocked: { cls: 'text-critical bg-critical/8 border-critical/30', icon: '✕' },
+  // Settled and good: solid ink, the strongest mark on the row.
+  confirmed: { cls: 'bg-ink text-surface border-ink', icon: '✓' },
+  active: { cls: 'bg-ink text-surface border-ink', icon: '✓' },
+  available: { cls: 'bg-ink text-surface border-ink', icon: '✓' },
+  responded: { cls: 'bg-ink text-surface border-ink', icon: '✓' },
+
+  // Waiting on someone: outlined, full-strength ink.
+  pending: { cls: 'bg-surface text-ink border-ink/45', icon: '○' },
+  open: { cls: 'bg-surface text-ink border-ink/45', icon: '○' },
+
+  // Stopped: outlined and struck, so it reads as negated.
+  rejected: { cls: 'bg-surface text-ink border-ink/45 line-through decoration-1', icon: '✕' },
+  full: { cls: 'bg-surface text-ink border-ink/45 line-through decoration-1', icon: '✕' },
+  blocked: { cls: 'bg-surface text-ink border-ink/45 line-through decoration-1', icon: '✕' },
+  cancelled: { cls: 'bg-plane text-ink-soft border-ink/15 line-through decoration-1', icon: '⊘' },
+  suspended: { cls: 'bg-plane text-ink-soft border-ink/15 line-through decoration-1', icon: '⊘' },
+
+  // Done and filed away: recessive.
+  completed: { cls: 'bg-plane text-ink-soft border-ink/15', icon: '✓' },
+  closed: { cls: 'bg-plane text-ink-muted border-ink/12', icon: '•' },
 };
 
 export function StatusPill({ status, children }) {
-  const s = STATUS_STYLES[status] || { cls: 'text-ink-soft bg-ink/5 border-ink/15', icon: '•' };
+  const s = STATUS_STYLES[status] || { cls: 'bg-plane text-ink-soft border-ink/15', icon: '•' };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${s.cls}`}>
-      <span aria-hidden="true">{s.icon}</span>
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs
+                      font-semibold capitalize ${s.cls}`}>
+      <span aria-hidden="true" className="text-[0.9em] leading-none no-underline">{s.icon}</span>
       {children ?? status}
     </span>
   );
@@ -77,11 +90,13 @@ export function StatusPill({ status, children }) {
 
 export function Badge({ children, tone = 'neutral' }) {
   const tones = {
-    neutral: 'bg-ink/5 text-ink-soft border-ink/10',
-    brand: 'bg-brand-wash text-brand-dark border-brand/20',
+    neutral: 'bg-plane text-ink-soft border-ink/10',
+    // "brand" now means emphasis, carried by ink weight rather than a hue.
+    brand: 'bg-brand-wash text-ink border-ink/20 font-semibold',
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs
+                      font-medium ${tones[tone]}`}>
       {children}
     </span>
   );
@@ -142,10 +157,11 @@ export function ToastProvider({ children }) {
     info: (m) => push(m, 'neutral'),
   }), [push]);
 
+  // Toasts differ by glyph and border weight, not by hue.
   const tones = {
-    good: 'border-good/40 bg-good/10 text-ink',
-    critical: 'border-critical/40 bg-critical/8 text-ink',
-    neutral: 'border-ink/15 bg-surface text-ink',
+    good: 'border-ink/25 bg-surface text-ink',
+    critical: 'border-ink/55 bg-surface text-ink',
+    neutral: 'border-ink/12 bg-surface text-ink-soft',
   };
   const icons = { good: '✓', critical: '⚠', neutral: 'ℹ' };
 
@@ -187,7 +203,7 @@ export function Pagination({ page, pages, onChange }) {
       {windowed.map((p) => (
         <button key={p} onClick={() => onChange(p)} aria-current={p === page ? 'page' : undefined}
                 className={`tabular h-9 w-9 rounded-lg text-sm font-semibold ${
-                  p === page ? 'bg-brand text-white' : 'text-ink-soft hover:bg-ink/5'}`}>
+                  p === page ? 'bg-ink text-white' : 'text-ink-soft hover:bg-ink/5'}`}>
           {p}
         </button>
       ))}
@@ -217,7 +233,8 @@ export function LiveDot({ connected }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
       <span aria-hidden="true"
-            className={`h-2 w-2 rounded-full ${connected ? 'animate-pulse bg-good' : 'bg-ink-muted'}`} />
+            className={`h-2 w-2 rounded-full ${
+              connected ? 'animate-pulse bg-ink' : 'bg-ink-muted opacity-40'}`} />
       {connected ? 'Live' : 'Offline'}
     </span>
   );

@@ -43,7 +43,7 @@ export default function Register() {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const Err = ({ field }) =>
-    fieldErrors[field] ? <p className="mt-1 text-xs text-critical">{fieldErrors[field]}</p> : null;
+    fieldErrors[field] ? <p className="mt-1 text-xs text-ink">{fieldErrors[field]}</p> : null;
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
@@ -63,7 +63,7 @@ export default function Register() {
               <label key={value}
                      className={`cursor-pointer rounded-lg border px-3 py-2.5 transition ${
                        form.role === value
-                         ? 'border-brand bg-brand-wash'
+                         ? 'border-ink bg-brand-wash'
                          : 'border-ink/12 hover:bg-ink/5'}`}>
                 <input type="radio" name="role" value={value} className="sr-only"
                        checked={form.role === value} onChange={set('role')} />
@@ -136,7 +136,7 @@ export default function Register() {
 
         <p className="text-center text-sm text-ink-soft">
           Already registered?{' '}
-          <Link to="/login" className="font-semibold text-brand hover:underline">Sign in</Link>
+          <Link to="/login" className="font-semibold text-ink hover:underline">Sign in</Link>
         </p>
       </form>
     </div>

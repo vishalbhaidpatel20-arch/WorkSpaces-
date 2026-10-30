@@ -36,7 +36,7 @@ From `server/`:
 ```bash
 npm start               # production start
 npm run seed:fresh      # reseed, clearing existing rows
-OCCUPANCY_SIMULATION=off npm start   # deterministic, for tests
+npm run start:test   # deterministic: simulator and rate limits off
 ```
 
 **Reseed before running tests or a demo.** The test suite and the Postman
@@ -270,7 +270,7 @@ Plain Node, no test framework. Exits 0/1 so it drops into CI unchanged.
 ```bash
 cd server
 npm run seed:fresh
-OCCUPANCY_SIMULATION=off npm start   # terminal 1
+npm run start:test                   # terminal 1 (simulator + rate limits off)
 npm test                             # terminal 2
 API_URL=https://... npm test         # against another environment
 ```

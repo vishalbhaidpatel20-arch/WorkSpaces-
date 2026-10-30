@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
+import { API_BASE } from './api.js';
 
 let socket = null;
 
-/** One shared connection for the whole app, opened on first use. */
+/**
+ * One shared connection for the whole app, opened on first use.
+ *
+ * With no VITE_API_URL the connection is same-origin, which the Vite dev proxy
+ * and a single-origin deployment both handle. When the API is on another host,
+ * Socket.IO connects to it directly - that host must allow this origin and must
+ * support WebSocket upgrades (serverless platforms generally do not).
+ */
 export function getSocket() {
-  if (!socket) socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+  if (!socket) {
+    socket = API_BASE
+      ? io(API_BASE, { path: '/socket.io', transports: ['websocket', 'polling'] })
+      : io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+  }
   return socket;
 }
 

@@ -207,7 +207,7 @@ POST   /api/admin/spaces/:id/approve
 ```bash
 cd server
 npm run seed:fresh
-OCCUPANCY_SIMULATION=off npm start   # terminal 1
+npm run start:test                   # terminal 1 (simulator + rate limits off)
 npm test                             # terminal 2
 ```
 

@@ -98,7 +98,7 @@ export default function MyInquiries() {
                     {q.wants_meeting ? <Badge tone="brand">Wants a meeting</Badge> : null}
                   </div>
                   <p className="mt-0.5 text-sm text-ink-soft">
-                    <Link to={`/spaces/${q.space_id}`} className="hover:text-brand">
+                    <Link to={`/spaces/${q.space_id}`} className="hover:text-ink">
                       {q.space_name}
                     </Link>
                     {scope !== 'mine' && ` · from ${q.user_name}${q.user_company ? ` (${q.user_company})` : ''}`}
@@ -122,7 +122,7 @@ export default function MyInquiries() {
 
               {q.reply && (
                 <div className="mt-3 rounded-lg bg-brand-wash p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink">
                     Reply from the space
                   </p>
                   <p className="mt-1 text-sm text-ink">{q.reply}</p>

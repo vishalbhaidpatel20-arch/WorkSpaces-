@@ -97,7 +97,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```bash
 cd server
 npm run seed:fresh
-OCCUPANCY_SIMULATION=off npm start     # terminal 1
+npm run start:test                     # terminal 1 (simulator + rate limits off)
 npm test                               # terminal 2 — 79 checks
 ```
 

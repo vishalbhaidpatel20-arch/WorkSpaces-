@@ -64,7 +64,7 @@ export default function Login() {
 
           <p className="text-center text-sm text-ink-soft">
             No account?{' '}
-            <Link to="/register" className="font-semibold text-brand hover:underline">
+            <Link to="/register" className="font-semibold text-ink hover:underline">
               Create one
             </Link>
           </p>
@@ -82,7 +82,7 @@ export default function Login() {
               <li key={email}>
                 <button onClick={() => useDemo(email)}
                         className="w-full rounded-lg border border-ink/10 px-3 py-2.5 text-left
-                                   transition hover:border-brand/40 hover:bg-brand-wash">
+                                   transition hover:border-ink/40 hover:bg-brand-wash">
                   <p className="text-sm font-semibold text-ink">{role}</p>
                   <p className="text-xs text-ink-soft">{email}</p>
                   <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>
