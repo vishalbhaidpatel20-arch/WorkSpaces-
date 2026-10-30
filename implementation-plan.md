@@ -1,7 +1,7 @@
 # Implementation plan — FlexoSpaces
 
 How the system was built, in the order it was built, with the decisions that
-shaped each stage. Phases 1–8 are **complete**; Phase 9 is the forward plan.
+shaped each stage. Phases 1–9 are **complete**; Phase 10 is the forward plan.
 
 ---
 
@@ -195,7 +195,7 @@ budget filtering and over-budget matching both have something to act on.
 
 ## Phase 8 — Verification
 
-A 76-check behavioural suite against the running API, covering happy paths,
+A 79-check behavioural suite against the running API, covering happy paths,
 every role boundary and the failure cases that matter:
 
 - overbooking refused with the remaining seat count returned
@@ -207,7 +207,7 @@ every role boundary and the failure cases that matter:
 - a pending listing is invisible publicly until approved
 - password hashes never serialised
 
-**All 76 pass.** Full matrix in `docs/test-cases.md`. The UI was then verified in
+**All 79 pass.** Full matrix in `docs/test-cases.md`. The UI was then verified in
 a real browser across the public, member, owner and admin surfaces, with a clean
 console.
 
@@ -217,18 +217,62 @@ over monthly price that let an hourly-only meeting room advertise "from ₹0".
 
 ---
 
-## Phase 9 — Forward plan (not built)
+## Phase 9 — Production hardening
+
+Added after the first verification pass, to move the build from "works" to
+"safe to expose". Each item closes a specific, named risk.
+
+### Correctness under concurrency
+
+The booking path was a read-then-write: check free seats, then insert and hold
+them. Under real parallelism two requests for the last desk can both read
+"1 free" before either writes, and the space is oversold.
+
+`transaction()` in `lib/db.js` now wraps the check and the hold in a single
+`BEGIN IMMEDIATE`, which takes the write lock up front so the second caller
+blocks rather than overselling. The status transitions had the same shape, and
+are now **conditional updates** — `WHERE id = ? AND status = 'pending'`, with
+`changes === 0` returning 409 — so a double confirm or double decline cannot
+release the same seats twice.
+
+### Security
+
+| Added | Closes |
+|---|---|
+| `express-rate-limit` — 10/15min on credentials, 30/min writes, 300/min overall | Brute-forcing login; verified, the 11th attempt returns 429 |
+| `helmet` + `x-powered-by` removed | Clickjacking, MIME sniffing, referrer leakage, stack fingerprinting |
+| `assertProductionConfig()` | Booting production with a forgeable default `JWT_SECRET` or wildcard CORS — the process now exits non-zero with an explanation |
+| `trust proxy` via `TRUST_PROXY_HOPS` | Rate limiting counting the proxy's IP instead of the client's, which would make it useless behind a load balancer |
+
+### Operations
+
+- **Graceful shutdown** on SIGTERM/SIGINT: stop the simulator, close Socket.IO,
+  drain in-flight requests, checkpoint the WAL, exit — with a 10s forced
+  timeout. Without this a container restart can cut a request mid-write.
+- **Honest health check**: `GET /api/health` returns 503 when the database is
+  unreachable instead of reporting "ok", so a load balancer can act on it.
+- **Single-origin option**: if `client/dist` exists the API serves the SPA with
+  a history fallback, so CORS never applies and deep links survive a refresh.
+- **gzip** via `compression`.
+
+Three checks were added to the suite for the headers and the environment
+report. **All 79 pass.** The config guard and the rate limiter were verified by
+running them directly, not by assuming.
+
+---
+
+## Phase 10 — Forward plan (not built)
 
 Ordered by value per unit of effort.
 
 | # | Item | Why it is next | Effort |
 |---|---|---|---|
-| 1 | Login rate limiting | The one security gap that is exploitable today | S |
-| 2 | Payment gateway (Razorpay/Stripe) | Turns a request into a transaction; the single biggest product gap | L |
-| 3 | Review capture | The one brief KPI not currently measurable | M |
-| 4 | Real email/SMS provider | Layer and audit trail exist; needs credentials and a worker | S |
-| 5 | PostgreSQL migration | Before concurrent write load; path documented in `docs/deployment.md` | M |
-| 6 | Refresh-token rotation | Makes revocation possible | M |
+| 1 | Payment gateway (Razorpay/Stripe) | Turns a request into a transaction; the single biggest product gap | L |
+| 2 | Review capture | The one brief KPI not currently measurable | M |
+| 3 | Real email/SMS provider | Layer and audit trail exist; needs credentials and a worker | S |
+| 4 | PostgreSQL migration | Before concurrent write load; path documented in `docs/deployment.md` | M |
+| 5 | Refresh-token rotation | Makes revocation possible before token expiry | M |
+| 6 | Redis-backed rate limiting | Current limiter is in-memory, so per-instance rather than global | S |
 | 7 | Map and radius search | Location matching is text-only today | M |
 | 8 | Real sensor integration | Contract and ingest endpoint are ready | M |
 | 9 | Dark mode | Needs a re-validated dark palette, not an inversion | M |

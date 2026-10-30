@@ -98,7 +98,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 cd server
 npm run seed:fresh
 OCCUPANCY_SIMULATION=off npm start     # terminal 1
-npm test                               # terminal 2 — 76 checks
+npm test                               # terminal 2 — 79 checks
 ```
 
 Against another environment:
@@ -221,11 +221,18 @@ location /socket.io/ {
 
 Ordered by risk.
 
-- [ ] Replace `JWT_SECRET` with a generated value. The default is a known string.
-- [ ] Set `CORS_ORIGIN` to the real frontend origin only — never `*`.
+> Several of these are now **enforced by the app**: starting with
+> `NODE_ENV=production` and a default/short `JWT_SECRET`, or a wildcard
+> `CORS_ORIGIN`, exits with a non-zero code and an explanation rather than
+> booting insecurely. The checklist still lists them so nothing is assumed.
+
+- [ ] Replace `JWT_SECRET` with a generated value. *(Enforced — the process refuses to start otherwise.)*
+- [ ] Set `CORS_ORIGIN` to the real frontend origin only — never `*`. *(Enforced.)*
+- [ ] Set `TRUST_PROXY_HOPS` to the number of proxies in front of the app, so
+      rate limiting sees real client IPs rather than the proxy's.
 - [ ] Terminate TLS at the proxy and redirect HTTP to HTTPS.
-- [ ] **Add login rate limiting.** This is the one exploitable gap in the current
-      build — `express-rate-limit` on `/api/auth/login` and `/api/auth/register`.
+- [ ] Leave `RATE_LIMIT` on. Limits are 10 attempts / 15 min on credential
+      endpoints, 30/min on writes, 300/min overall. *(Built in.)*
 - [ ] Change every seeded account password, or delete the seed accounts entirely.
 - [ ] Back up `data/app.db` on a schedule (`sqlite3 app.db ".backup"` works on a
       live database in WAL mode).
@@ -273,7 +280,7 @@ Then:
 2. Rewrite `server/src/lib/db.js` to export a `pg` pool with the same
    `prepare().get()/all()/run()` shape, or convert call sites to `await`.
 3. Run the schema from `db.js` with the substitutions above.
-4. Re-run `npm test` — 76 checks over the full surface will find anything missed.
+4. Re-run `npm test` — 79 checks over the full surface will find anything missed.
 
 Table definitions, indexes, constraints and every query otherwise carry over
 unchanged.

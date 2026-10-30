@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
-import db from '../lib/db.js';
+import db, { transaction } from '../lib/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { ApiError, validate } from '../middleware/errors.js';
 import {
@@ -71,26 +71,34 @@ router.post('/', requireAuth, validate(createSchema), (req, res) => {
     throw new ApiError(422, `This space seats at most ${space.capacity}`);
   }
 
-  const free = seatsAvailableAcross(space_id, start_date, end_date);
-  if (free < seats) {
-    throw new ApiError(409, `Only ${Math.max(0, free)} seat(s) available for the whole of that period`, {
-      seats_requested: seats,
-      seats_available: Math.max(0, free),
-    });
-  }
-
   const days = datesBetween(start_date, end_date).length;
   const total = quotePrice(space, seats, days);
 
-  const info = db
-    .prepare(`INSERT INTO bookings
-      (code, space_id, user_id, start_date, end_date, seats, total_price, status, notes)
-      VALUES (?,?,?,?,?,?,?,'pending',?)`)
-    .run(bookingCode(), space_id, req.user.id, start_date, end_date, seats, total, notes ?? null);
+  /*
+   * The seat check and the seat hold must be atomic. Without the transaction,
+   * two requests for the last desk can both read "1 free" before either writes,
+   * and the space is oversold. BEGIN IMMEDIATE makes the second caller wait.
+   */
+  const bookingId = transaction(() => {
+    const free = seatsAvailableAcross(space_id, start_date, end_date);
+    if (free < seats) {
+      throw new ApiError(409, `Only ${Math.max(0, free)} seat(s) available for the whole of that period`, {
+        seats_requested: seats,
+        seats_available: Math.max(0, free),
+      });
+    }
 
-  adjustBookedSeats(space_id, start_date, end_date, seats);
+    const info = db
+      .prepare(`INSERT INTO bookings
+        (code, space_id, user_id, start_date, end_date, seats, total_price, status, notes)
+        VALUES (?,?,?,?,?,?,?,'pending',?)`)
+      .run(bookingCode(), space_id, req.user.id, start_date, end_date, seats, total, notes ?? null);
 
-  const booking = loadBooking(Number(info.lastInsertRowid));
+    adjustBookedSeats(space_id, start_date, end_date, seats);
+    return Number(info.lastInsertRowid);
+  });
+
+  const booking = loadBooking(bookingId);
   const owner = db.prepare('SELECT * FROM users WHERE id = ?').get(space.owner_id);
 
   notifyAll({
@@ -207,8 +215,12 @@ router.post('/:id/confirm', requireAuth, (req, res) => {
     throw new ApiError(409, `Cannot confirm a booking that is already ${booking.status}`);
   }
 
-  db.prepare(`UPDATE bookings SET status = 'confirmed', decided_at = datetime('now') WHERE id = ?`)
-    .run(booking.id);
+  // Conditional on status, so two concurrent confirms cannot both succeed.
+  const changed = db
+    .prepare(`UPDATE bookings SET status = 'confirmed', decided_at = datetime('now')
+              WHERE id = ? AND status = 'pending'`)
+    .run(booking.id).changes;
+  if (!changed) throw new ApiError(409, 'This booking was already decided');
 
   const member = db.prepare('SELECT * FROM users WHERE id = ?').get(booking.user_id);
   notifyAll({
@@ -229,11 +241,16 @@ router.post('/:id/reject', requireAuth,
       throw new ApiError(409, `Cannot reject a booking that is already ${booking.status}`);
     }
 
-    db.prepare(`UPDATE bookings SET status = 'rejected', decline_reason = ?,
-                decided_at = datetime('now') WHERE id = ?`)
-      .run(req.body.reason ?? null, booking.id);
-    // Held seats go back to the pool.
-    adjustBookedSeats(booking.space_id, booking.start_date, booking.end_date, -booking.seats);
+    // Decide and release the seats atomically, and only if still pending, so a
+    // double decline cannot release the same seats twice.
+    transaction(() => {
+      const changed = db
+        .prepare(`UPDATE bookings SET status = 'rejected', decline_reason = ?,
+                  decided_at = datetime('now') WHERE id = ? AND status = 'pending'`)
+        .run(req.body.reason ?? null, booking.id).changes;
+      if (!changed) throw new ApiError(409, 'This booking was already decided');
+      adjustBookedSeats(booking.space_id, booking.start_date, booking.end_date, -booking.seats);
+    });
 
     const member = db.prepare('SELECT * FROM users WHERE id = ?').get(booking.user_id);
     notifyAll({
@@ -259,9 +276,15 @@ router.post('/:id/cancel', requireAuth, (req, res) => {
     throw new ApiError(409, `Cannot cancel a booking that is already ${booking.status}`);
   }
 
-  db.prepare(`UPDATE bookings SET status = 'cancelled', decided_at = datetime('now') WHERE id = ?`)
-    .run(booking.id);
-  adjustBookedSeats(booking.space_id, booking.start_date, booking.end_date, -booking.seats);
+  // Same guard as decline: release the held seats exactly once.
+  transaction(() => {
+    const changed = db
+      .prepare(`UPDATE bookings SET status = 'cancelled', decided_at = datetime('now')
+                WHERE id = ? AND status IN ('pending','confirmed')`)
+      .run(booking.id).changes;
+    if (!changed) throw new ApiError(409, 'This booking was already closed');
+    adjustBookedSeats(booking.space_id, booking.start_date, booking.end_date, -booking.seats);
+  });
 
   const counterpartId = isMember ? booking.owner_id : booking.user_id;
   const counterpart = db.prepare('SELECT * FROM users WHERE id = ?').get(counterpartId);

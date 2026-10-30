@@ -196,4 +196,4 @@ open inquiries, notifications sent.
 6. Role boundaries hold: no member can reach owner or admin functions. ✅
 7. Occupancy updates reach an open dashboard without a page reload. ✅
 
-All seven are covered by the 76-check API suite in `docs/test-cases.md`.
+All seven are covered by the 79-check API suite in `docs/test-cases.md`.

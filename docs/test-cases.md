@@ -22,7 +22,7 @@ cases assert on absolute counts.
 ## Latest result
 
 ```
-76 passed, 0 failed
+79 passed, 0 failed
 ```
 
 Executed against Node 24.21.0 on Windows 11, API on `localhost:4000`, freshly
@@ -45,7 +45,8 @@ seeded database.
 | Dashboards | 6 | 6 pass |
 | Admin moderation | 8 | 8 pass |
 | Error handling and catalogue | 4 | 4 pass |
-| **Total** | **76** | **76 pass** |
+| Production hardening | 3 | 3 pass |
+| **Total** | **79** | **79 pass** |
 
 ---
 

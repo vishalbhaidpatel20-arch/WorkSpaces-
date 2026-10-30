@@ -16,13 +16,16 @@ option was reasonable, what was rejected and why.
 | Validation | Zod | 4.x |
 | Real-time | Socket.IO | 4.x |
 | HTTP logging | morgan | 1.x |
+| Security headers | helmet | 8.x |
+| Rate limiting | express-rate-limit | 8.x |
+| Compression | compression | 1.x |
 | Frontend | React | 19.x |
 | Build tool | Vite | 7.x |
 | Routing | React Router | 7.x |
 | Styling | Tailwind CSS | 4.x |
 | Charts | Hand-built SVG | no dependency |
 
-Total runtime dependencies: **7 server, 4 client**. Nothing paid, nothing that
+Total runtime dependencies: **10 server, 4 client**. Nothing paid, nothing that
 needs a native toolchain to install.
 
 ---
@@ -209,10 +212,23 @@ unit-tested without a database or a server.
 | Payload size | JSON capped at 1 MB |
 | Secrets | `JWT_SECRET` from the environment; the dev default is obviously named and documented as replace-before-deploy |
 
-**Known gaps, stated rather than hidden:** no rate limiting on login (add
-`express-rate-limit` before exposure), no refresh-token rotation, no CSRF
-concern because auth is a bearer header rather than a cookie, and no HTTPS
-termination in the app itself (expected at the proxy).
+### Production hardening
+
+| Concern | Handling |
+|---|---|
+| Brute force | `express-rate-limit`: 10/15min on credential endpoints, 30/min on writes, 300/min overall |
+| Security headers | `helmet` — nosniff, SAMEORIGIN, no-referrer, COOP/CORP; `X-Powered-By` removed |
+| Unsafe production config | The process exits non-zero under `NODE_ENV=production` with a default/short `JWT_SECRET` or wildcard `CORS_ORIGIN` |
+| Oversell race | Seat check + hold in one `BEGIN IMMEDIATE` transaction; status transitions are conditional updates |
+| Proxy awareness | `trust proxy` configurable via `TRUST_PROXY_HOPS`, so rate limits see real client IPs |
+| Shutdown | SIGTERM/SIGINT drain in-flight requests and checkpoint the WAL, with a 10s forced timeout |
+| Transfer | gzip via `compression` |
+
+**Known gaps, stated rather than hidden:** no refresh-token rotation (so a token
+cannot be revoked before its 7-day expiry), rate limiting is in-memory and
+therefore per-instance rather than global (move to a Redis store when scaling
+out), no CSRF concern because auth is a bearer header rather than a cookie, and
+no HTTPS termination in the app itself (expected at the proxy).
 
 ---
 

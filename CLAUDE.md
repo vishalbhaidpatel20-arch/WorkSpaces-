@@ -28,7 +28,7 @@ npm run seed            # wipe and reseed the database
 npm run dev:api         # API with --watch on :4000
 npm run dev:web         # Vite dev server on :5173
 npm run build           # production client build
-npm test                # 76-check API suite (API must be running)
+npm test                # 79-check API suite (API must be running)
 ```
 
 From `server/`:
@@ -125,6 +125,25 @@ needed, placeholders are generated and values bound separately — see
 
 The client hides controls it shouldn't show; the server decides. Every mutating
 route carries `requireAuth` plus `requireRole` and/or `requireSpaceOwner`.
+
+### 8. The seat check and the seat hold are one transaction
+
+`POST /bookings` wraps `seatsAvailableAcross` + insert + `adjustBookedSeats` in
+`transaction()`, which uses `BEGIN IMMEDIATE`. Splitting them back apart
+reintroduces the oversell race: two requests both read "1 free" before either
+writes.
+
+Status transitions (`confirm`, `reject`, `cancel`) use **conditional updates**
+(`WHERE id = ? AND status = 'pending'`) and treat `changes === 0` as a 409. Do
+not replace these with a read-then-write — a double decline would release the
+same seats twice.
+
+### 9. Production config is validated at boot
+
+`assertProductionConfig()` in `index.js` exits non-zero under
+`NODE_ENV=production` with a default or short `JWT_SECRET`, or a wildcard
+`CORS_ORIGIN`. Do not downgrade these to warnings — failing loudly at boot is
+the point.
 
 ---
 
@@ -245,7 +264,7 @@ occupancy numbers. It exists so the feature is demonstrable without hardware.
 
 ## Testing
 
-`server/test/api-suite.mjs` — 76 behavioural checks against a running API.
+`server/test/api-suite.mjs` — 79 behavioural checks against a running API.
 Plain Node, no test framework. Exits 0/1 so it drops into CI unchanged.
 
 ```bash
@@ -304,16 +323,14 @@ right. Corrected to 9, where it now doubles as a guard on `AUTH-10`.
 Not hidden, not pretending otherwise:
 
 - No payment processing — bookings are requests.
-- No login rate limiting — the one exploitable gap today. Add
-  `express-rate-limit` before any real exposure.
 - No refresh-token rotation, so a token cannot be revoked before it expires.
 - Notifications are persisted and logged, not sent, until a provider is set.
 - No review capture, so the brief's "user satisfaction score" KPI is not
   measurable.
-- The booking read-then-write is not wrapped in a transaction — the most likely
-  place for a race under real concurrency.
+- Rate limiting is per-process and in-memory. Across multiple instances it is
+  per-instance, not global — move to a shared store (Redis) when you scale out.
 
-Prioritised forward plan in `implementation-plan.md` § Phase 9.
+Prioritised forward plan in `implementation-plan.md` § Phase 10.
 
 ---
 
@@ -327,5 +344,5 @@ Prioritised forward plan in `implementation-plan.md` § Phase 9.
 | `implementation-plan.md` | Build phases, key decisions, forward plan |
 | `docs/openapi.yaml` | OpenAPI 3.1 contract for all 46 endpoints |
 | `docs/postman/` | Runnable collection — 43 requests, 22 assertions |
-| `docs/test-cases.md` | 76-case matrix and coverage gaps |
+| `docs/test-cases.md` | 79-case matrix and coverage gaps |
 | `docs/deployment.md` | Local, production, PostgreSQL migration |

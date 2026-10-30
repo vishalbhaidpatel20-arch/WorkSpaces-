@@ -151,4 +151,41 @@ CREATE INDEX IF NOT EXISTS idx_occupancy_space_time
   ON occupancy_readings(space_id, recorded_at DESC);
 `);
 
+/**
+ * Run `fn` inside a single transaction, rolling back if it throws.
+ *
+ * Uses BEGIN IMMEDIATE so the write lock is taken up front rather than on the
+ * first write. That matters for read-then-write paths such as booking: two
+ * concurrent requests for the last seat must not both read "1 free" before
+ * either writes. The second caller blocks here instead of overselling.
+ *
+ * Not reentrant - SQLite has no nested transactions. Do not call it from
+ * inside another transaction.
+ */
+export function transaction(fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // The transaction was already rolled back by SQLite; keep the real error.
+    }
+    throw err;
+  }
+}
+
+/** Close cleanly on shutdown so WAL content is checkpointed to the main file. */
+export function closeDatabase() {
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    db.close();
+  } catch {
+    // Already closed, or closing during a failed start. Nothing useful to do.
+  }
+}
+
 export default db;

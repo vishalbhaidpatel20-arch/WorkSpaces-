@@ -136,7 +136,7 @@ The login page has one-click shortcuts for each.
 | Styling | Tailwind CSS 4 |
 | Charts | Hand-built SVG (no chart library) |
 
-Seven server dependencies, four client dependencies. Full reasoning — including
+Ten server dependencies, four client dependencies. Full reasoning — including
 what was rejected and why — in [`tech-stack.md`](tech-stack.md).
 
 ---
@@ -153,7 +153,7 @@ StartCo/
 │   │   ├── realtime.js      Socket.IO + occupancy telemetry
 │   │   ├── seed.js          demo data
 │   │   └── index.js
-│   └── test/api-suite.mjs   76 behavioural checks
+│   └── test/api-suite.mjs   79 behavioural checks
 │
 ├── client/                  React SPA
 │   └── src/
@@ -212,14 +212,15 @@ npm test                             # terminal 2
 ```
 
 ```
-76 passed, 0 failed
+79 passed, 0 failed
 ```
 
 Covers happy paths, every role boundary, and the failure cases that matter:
 overbooking refused with the remaining seat count, reversed and past date
 ranges, an owner booking their own space, one owner deciding another's booking,
 members reaching owner or admin routes, admin self-demotion, pending listings
-staying invisible, and password hashes never being serialised.
+staying invisible, password hashes never being serialised, and the security
+headers being present.
 
 The Postman collection runs the same surface:
 
@@ -230,6 +231,26 @@ postman collection run docs/postman/FlexoSpaces.postman_collection.json
 
 Full matrix, plus **an honest list of what is not covered**, in
 [`docs/test-cases.md`](docs/test-cases.md).
+
+---
+
+## Production readiness
+
+The build is hardened rather than demo-only. What is in place:
+
+| Concern | Handling |
+|---|---|
+| **Overselling under concurrency** | The seat check and seat hold run in one `BEGIN IMMEDIATE` transaction, so two simultaneous requests for the last desk cannot both succeed. Status transitions are conditional updates, so a double-confirm or double-cancel cannot release seats twice. |
+| **Brute force** | Rate limiting: 10 attempts per 15 min on credential endpoints, 30/min on writes, 300/min overall. Verified — the 11th login attempt returns 429. |
+| **Security headers** | `helmet` — `nosniff`, `SAMEORIGIN`, `no-referrer`, COOP/CORP. `X-Powered-By` removed. Asserted in the test suite. |
+| **Unsafe production config** | The process **refuses to start** under `NODE_ENV=production` with a default/short `JWT_SECRET` or a wildcard `CORS_ORIGIN`, and warns if the occupancy simulator is left on. |
+| **Proxies** | `trust proxy` is configurable, so client IPs — and therefore rate limits — are correct behind a load balancer. |
+| **Shutdown** | SIGTERM/SIGINT drain in-flight requests, stop the simulator, close Socket.IO, and checkpoint the WAL before exit, with a 10s forced timeout. |
+| **Health** | `GET /api/health` returns 503 if the database is unreachable, rather than a misleading "ok". |
+| **Payload / transport** | 1 MB JSON cap, gzip compression, strict origin allowlist. |
+| **Single-origin deploy** | If `client/dist` exists, the API serves the SPA with a history fallback, so CORS never applies and deep links survive a refresh. |
+
+Remaining pre-launch items are listed in [`docs/deployment.md`](docs/deployment.md) § *Before going live*.
 
 ---
 
@@ -265,7 +286,7 @@ Stated plainly rather than left to be discovered:
 - **Occupancy is simulated** unless real sensors POST to the ingest endpoint.
 - **Notifications are persisted and logged**, not sent externally, until an SMTP or SMS provider is configured.
 - **No review submission.** Ratings are displayed from seed data, so the brief's "user satisfaction score" KPI is not yet measurable.
-- **No login rate limiting** — the one security gap worth closing before any real exposure.
+- **No refresh-token rotation**, so a JWT cannot be revoked before it expires (7-day default TTL).
 - **Light mode only.** A correct dark mode means re-validating every colour against a dark surface; an automatic inversion would produce exactly the low-contrast result the validation exists to prevent.
 - **Location matching is by city and locality text**, not coordinates or radius.
 - **No frontend unit tests**; UI verification was manual, in Chrome.
@@ -283,7 +304,7 @@ See [`scope.md`](scope.md) for the full in/out boundary and
 | [`tech-stack.md`](tech-stack.md) | Every technology choice, with rejected alternatives |
 | [`implementation-plan.md`](implementation-plan.md) | Build phases, key decisions, forward plan |
 | [`docs/openapi.yaml`](docs/openapi.yaml) | OpenAPI 3.1 contract |
-| [`docs/test-cases.md`](docs/test-cases.md) | 76-case matrix and coverage gaps |
+| [`docs/test-cases.md`](docs/test-cases.md) | 79-case matrix and coverage gaps |
 | [`docs/deployment.md`](docs/deployment.md) | Local setup, production, PostgreSQL migration |
 | [`CLAUDE.md`](CLAUDE.md) | Build notes and conventions |
 

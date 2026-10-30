@@ -282,6 +282,17 @@ check('admin cannot demote self -> 409', selfRole.status === 409);
 const adminAsOwner = await req('GET', '/admin/users', { token: owner.token });
 check('non-admin blocked from admin routes -> 403', adminAsOwner.status === 403);
 
+console.log('\n== production hardening ==');
+const headRes = await fetch(`${BASE}/health`);
+check('security headers present (helmet)',
+  headRes.headers.get('x-content-type-options') === 'nosniff' &&
+  headRes.headers.get('referrer-policy') === 'no-referrer' &&
+  headRes.headers.get('x-frame-options') === 'SAMEORIGIN',
+  `got ${[...headRes.headers.keys()].join(',')}`);
+check('server does not advertise its stack',
+  headRes.headers.get('x-powered-by') === null);
+check('health reports the environment', (await headRes.json()).environment !== undefined);
+
 console.log('\n== misc ==');
 const missing = await req('GET', '/spaces/99999');
 check('unknown space -> 404', missing.status === 404);
