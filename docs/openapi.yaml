@@ -1,0 +1,1357 @@
+openapi: 3.1.0
+
+info:
+  title: FlexoSpaces API
+  version: 1.0.0
+  description: |
+    REST API for FlexoSpaces — Smart Co-Working Space Management Using
+    Real-Time Monitoring.
+
+    ## Authentication
+    All protected endpoints take `Authorization: Bearer <token>`. Obtain a token
+    from `POST /auth/register` or `POST /auth/login`.
+
+    ## Roles
+    - `user` — member: searches, books, raises inquiries
+    - `owner` — space owner: lists spaces, sets availability, decides bookings
+    - `admin` — platform administrator: approves listings, manages users, reads KPIs
+
+    An admin passes every role check. Public signup accepts `user` and `owner`
+    only — `admin` is rejected with 422.
+
+    ## Conventions
+    - Collections return `{ "data": [...] }`, optionally with `{ "meta": {...} }`.
+    - Single resources return `{ "data": {...} }`.
+    - Errors return `{ "error": "message" }`, plus `details` for 422.
+    - Dates are calendar dates, `YYYY-MM-DD`. Money is whole rupees (INR).
+
+    ## Real-time
+    Alongside this API, a Socket.IO endpoint emits `occupancy`, `availability`
+    and `booking` events. Join `space:<id>` for one listing or `monitor` for the
+    platform-wide feed.
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Spaces
+  - name: Availability
+  - name: Monitoring
+  - name: Bookings
+  - name: Inquiries
+  - name: Matching
+  - name: Amenities
+  - name: Dashboards
+  - name: Admin
+  - name: Notifications
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string }
+                  version: { type: string }
+                  spaces: { type: integer }
+                  uptime_seconds: { type: integer }
+                  time: { type: string, format: date-time }
+
+  # ----------------------------------------------------------------- auth ---
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 200 }
+                role:
+                  type: string
+                  enum: [user, owner]
+                  default: user
+                  description: '`admin` is rejected — administrators are provisioned, not self-registered.'
+                phone: { type: string, maxLength: 20 }
+                company: { type: string, maxLength: 120 }
+                team_size: { type: integer, minimum: 1, maximum: 5000 }
+                work_style: { $ref: '#/components/schemas/WorkStyle' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401':
+          description: |
+            Invalid email or password. The same message is returned for an
+            unknown email and a wrong password, so the endpoint cannot be used
+            to enumerate accounts.
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses:
+        '200':
+          description: The signed-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Auth]
+      summary: Update own profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                phone: { type: string, nullable: true }
+                company: { type: string, nullable: true }
+                team_size: { type: integer, nullable: true }
+                work_style:
+                  oneOf:
+                    - $ref: '#/components/schemas/WorkStyle'
+                    - type: 'null'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /auth/me/password:
+    post:
+      tags: [Auth]
+      summary: Change own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        '200': { description: Password updated }
+        '401': { description: Current password is incorrect }
+
+  # --------------------------------------------------------------- spaces ---
+  /spaces:
+    get:
+      tags: [Spaces]
+      summary: Search and filter spaces
+      description: |
+        Returns active listings matching every filter supplied, each scored
+        against the same criteria. Use `POST /match` instead when near-misses
+        should be surfaced rather than filtered out.
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Keyword across name, description, locality and city }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: locality, in: query, schema: { type: string } }
+        - { name: persons, in: query, schema: { type: integer, minimum: 1 }, description: Minimum seating capacity }
+        - { name: area, in: query, schema: { type: integer, minimum: 1 }, description: Minimum area in sq.ft }
+        - { name: budget, in: query, schema: { type: integer }, description: Maximum price per seat per month }
+        - { name: min_price, in: query, schema: { type: integer } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/WorkspaceType' } }
+        - { name: work_style, in: query, schema: { $ref: '#/components/schemas/WorkStyle' } }
+        - { name: amenities, in: query, schema: { type: string }, description: 'Comma-separated slugs. ANDed: a space must have every one.' }
+        - { name: min_rating, in: query, schema: { type: number, minimum: 0, maximum: 5 } }
+        - { name: available_on, in: query, schema: { type: string, format: date } }
+        - { name: seats, in: query, schema: { type: integer }, description: Seats required on `available_on` }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [match, price_asc, price_desc, rating, capacity, area, newest]
+            default: match
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 60, default: 12 } }
+      responses:
+        '200':
+          description: Matching spaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SpaceSummary' }
+                  meta:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      page: { type: integer }
+                      limit: { type: integer }
+                      pages: { type: integer }
+                      sort: { type: string }
+                      criteria_applied: { type: object }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Spaces]
+      summary: Create a listing
+      description: Owner only. The listing starts as `pending` and is invisible to members until an admin approves it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SpaceInput' }
+      responses:
+        '201':
+          description: Created, awaiting approval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Space' }
+                  message: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /spaces/cities:
+    get:
+      tags: [Spaces]
+      summary: Cities with active listings
+      security: []
+      responses:
+        '200':
+          description: Cities and their listing counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        city: { type: string }
+                        space_count: { type: integer }
+
+  /spaces/filters:
+    get:
+      tags: [Spaces]
+      summary: Filter bounds
+      description: Price, capacity and area ranges plus the city, type and amenity vocabularies, so a UI can build controls from real data.
+      security: []
+      responses:
+        '200':
+          description: Filter metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      min_price: { type: integer, description: Excludes hourly-only listings, which store a monthly price of 0 }
+                      max_price: { type: integer }
+                      min_capacity: { type: integer }
+                      max_capacity: { type: integer }
+                      min_area: { type: integer }
+                      max_area: { type: integer }
+                      total: { type: integer }
+                      cities: { type: array, items: { type: object } }
+                      workspace_types: { type: array, items: { type: string } }
+                      work_styles: { type: array, items: { type: string } }
+                      amenities: { type: array, items: { $ref: '#/components/schemas/Amenity' } }
+
+  /spaces/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Spaces]
+      summary: Space detail
+      description: Includes amenities, owner summary, a 30-day availability window and recent occupancy readings. Non-active listings are visible only to their owner and to admins.
+      security: []
+      responses:
+        '200':
+          description: The space
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/SpaceDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Spaces]
+      summary: Update a listing
+      description: Owner only. A capacity change propagates to all future availability rows and emits a live availability event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SpaceInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Space' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Spaces]
+      summary: Delete a listing
+      description: Refused while pending or confirmed bookings exist.
+      responses:
+        '200': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Active bookings exist }
+
+  /spaces/{id}/amenities:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [Spaces]
+      summary: Replace a listing's amenities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amenities]
+              properties:
+                amenities: { type: array, items: { type: string }, description: Amenity slugs }
+      responses:
+        '200': { description: Updated amenity list }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # --------------------------------------------------------- availability ---
+  /spaces/{id}/availability:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Availability]
+      summary: Day-by-day availability
+      security: []
+      parameters:
+        - { name: start, in: query, schema: { type: string, format: date }, description: Defaults to today }
+        - { name: end, in: query, schema: { type: string, format: date }, description: Defaults to 30 days after start }
+      responses:
+        '200':
+          description: One row per day
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AvailabilityDay' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Availability]
+      summary: Set seats or block a date range
+      description: Owner only. Used for maintenance windows, private events and seasonal seat changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start, end]
+              properties:
+                start: { type: string, format: date }
+                end: { type: string, format: date }
+                seats_total: { type: integer, minimum: 0 }
+                is_blocked: { type: boolean }
+      responses:
+        '200': { description: Updated range }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ----------------------------------------------------------- monitoring ---
+  /spaces/{id}/occupancy:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Monitoring]
+      summary: Occupancy history
+      security: []
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 60 } }
+      responses:
+        '200':
+          description: Readings oldest-first, with the latest and the average
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      space_id: { type: integer }
+                      latest: { $ref: '#/components/schemas/OccupancyReading' }
+                      average_percent: { type: integer }
+                      readings:
+                        type: array
+                        items: { $ref: '#/components/schemas/OccupancyReading' }
+    post:
+      tags: [Monitoring]
+      summary: Ingest a sensor reading
+      description: |
+        Owner only. The integration point for door counters, Wi-Fi association
+        hooks and badge readers. Emits an `occupancy` Socket.IO event to the
+        `space:<id>` and `monitor` rooms.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seats_occupied]
+              properties:
+                seats_occupied: { type: integer, minimum: 0 }
+                source: { type: string, default: sensor, example: door-sensor }
+      responses:
+        '201':
+          description: Reading accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/OccupancyReading' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: seats_occupied exceeds capacity }
+
+  # ------------------------------------------------------------- bookings ---
+  /bookings/quote:
+    post:
+      tags: [Bookings]
+      summary: Price a stay without committing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingDates' }
+      responses:
+        '200':
+          description: Quote
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      days: { type: integer }
+                      seats: { type: integer }
+                      seats_available: { type: integer, description: Minimum free seats across every day in the range }
+                      bookable: { type: boolean }
+                      total_price: { type: integer }
+                      currency: { type: string, example: INR }
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: List bookings
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [mine, owned, all], default: mine }
+          description: '`mine` — booked by me; `owned` — for my spaces (owner); `all` — everything (admin).'
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/BookingStatus' } }
+        - { name: space_id, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Booking' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Bookings]
+      summary: Request a booking
+      description: |
+        Creates a `pending` request and **holds the seats immediately**, so two
+        members cannot both be told the last desk is free while the owner
+        decides. Declining or cancelling releases them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/BookingDates'
+                - type: object
+                  properties:
+                    notes: { type: string, maxLength: 1000 }
+      responses:
+        '201':
+          description: Request created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Booking' }
+                  message: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: |
+            Not bookable — the space is inactive, it is the caller's own
+            listing, or not enough seats are free. Seat shortfalls include
+            `details.seats_available`.
+        '422': { description: Dates in the past, reversed, or seats beyond capacity }
+
+  /bookings/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Bookings]
+      summary: Booking detail
+      description: Visible to the member who booked, the space owner, and admins.
+      responses:
+        '200':
+          description: The booking
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Booking' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/{id}/confirm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Bookings]
+      summary: Confirm a request
+      description: Space owner or admin. Only a `pending` booking can be confirmed.
+      responses:
+        '200': { description: Confirmed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Booking is not pending }
+
+  /bookings/{id}/reject:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Bookings]
+      summary: Decline a request
+      description: Releases the held seats and notifies the member.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500, description: Shared with the member }
+      responses:
+        '200': { description: Declined }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Booking is not pending }
+
+  /bookings/{id}/cancel:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Bookings]
+      summary: Cancel a booking
+      description: Either party may cancel a `pending` or `confirmed` booking. Seats are released.
+      responses:
+        '200': { description: Cancelled }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Booking cannot be cancelled from its current state }
+
+  # ------------------------------------------------------------ inquiries ---
+  /inquiries:
+    get:
+      tags: [Inquiries]
+      summary: List inquiries
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [mine, owned, all], default: mine } }
+        - { name: status, in: query, schema: { type: string, enum: [open, responded, closed] } }
+      responses:
+        '200':
+          description: Inquiries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Inquiry' } }
+    post:
+      tags: [Inquiries]
+      summary: Raise an inquiry
+      description: |
+        The expectation-matching channel. Team size, work style and expectations
+        travel with the message so the owner can answer with the right detail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [space_id, subject, message]
+              properties:
+                space_id: { type: integer }
+                subject: { type: string, minLength: 3, maxLength: 140 }
+                message: { type: string, minLength: 10, maxLength: 2000 }
+                team_size: { type: integer }
+                work_style: { $ref: '#/components/schemas/WorkStyle' }
+                expectations: { type: string, maxLength: 1000 }
+                wants_meeting: { type: boolean, default: false }
+      responses:
+        '201': { description: Inquiry sent }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /inquiries/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Inquiries]
+      summary: Inquiry detail
+      responses:
+        '200': { description: The inquiry }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /inquiries/{id}/reply:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Inquiries]
+      summary: Reply to an inquiry
+      description: Space owner or admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reply]
+              properties:
+                reply: { type: string, minLength: 2, maxLength: 2000 }
+      responses:
+        '200': { description: Reply sent; status becomes `responded` }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Inquiry is closed }
+
+  /inquiries/{id}/close:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Inquiries]
+      summary: Close an inquiry
+      responses:
+        '200': { description: Closed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ------------------------------------------------------------- matching ---
+  /match:
+    post:
+      tags: [Matching]
+      summary: Smart match
+      description: |
+        Scores spaces against stated requirements across seven weighted criteria
+        and returns them best-first with the reasons behind each score.
+
+        Unlike `GET /spaces`, matching does **not** hard-filter on capacity,
+        budget, area or amenities. A space that misses one criterion but fits
+        everything else is still returned, with the shortfall spelled out in
+        `match.reasons`. Only genuinely disqualifying constraints — city and
+        date availability — narrow the candidate pool.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MatchCriteria' }
+      responses:
+        '200':
+          description: Ranked recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SpaceSummary' }
+                  meta:
+                    type: object
+                    properties:
+                      candidates_considered: { type: integer }
+                      returned: { type: integer }
+                      criteria: { type: object }
+                      weights:
+                        type: object
+                        description: Points available per criterion; they sum to 100.
+                        example: { capacity: 25, budget: 25, amenities: 15, location: 15, area: 10, type: 5, workStyle: 5 }
+                      best_score: { type: integer }
+                      average_score: { type: integer, description: 'The brief''s "average match accuracy" KPI.' }
+
+  /match/explain/{spaceId}:
+    parameters:
+      - { name: spaceId, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Matching]
+      summary: Explain one space's score
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MatchCriteria' }
+      responses:
+        '200':
+          description: Per-criterion breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      space_id: { type: integer }
+                      name: { type: string }
+                      score: { type: integer }
+                      fit: { type: string, enum: [excellent, good, fair, poor] }
+                      reasons: { type: array, items: { type: string } }
+                      breakdown:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            weight: { type: number }
+                            earned: { type: number }
+                            ratio: { type: number }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /match/peers:
+    get:
+      tags: [Matching]
+      summary: Teams with a similar work style and size
+      description: |
+        Expectation matching between teams. Contact details are deliberately
+        never returned — an introduction goes through a space manager.
+      parameters:
+        - { name: city, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 25, default: 8 } }
+      responses:
+        '200':
+          description: Peer teams with affinity scores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        company: { type: string, nullable: true }
+                        team_size: { type: integer, nullable: true }
+                        work_style: { type: string, nullable: true }
+                        bookings: { type: integer }
+                        cities: { type: array, items: { type: string } }
+                        affinity_score: { type: integer }
+                        shared: { type: array, items: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------ amenities ---
+  /amenities:
+    get:
+      tags: [Amenities]
+      summary: Amenity catalogue
+      security: []
+      responses:
+        '200':
+          description: Amenities with usage counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Amenity' } }
+    post:
+      tags: [Amenities]
+      summary: Create an amenity
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name]
+              properties:
+                slug: { type: string, pattern: '^[a-z0-9_]+$', maxLength: 40 }
+                name: { type: string, minLength: 2, maxLength: 60 }
+                icon: { type: string, maxLength: 10 }
+                category: { type: string, enum: [connectivity, comfort, facilities, access, services] }
+      responses:
+        '201': { description: Created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Slug already exists }
+
+  /amenities/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      tags: [Amenities]
+      summary: Update an amenity
+      responses:
+        '200': { description: Updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Amenities]
+      summary: Delete an amenity
+      responses:
+        '200': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ----------------------------------------------------------- dashboards ---
+  /dashboard/user:
+    get:
+      tags: [Dashboards]
+      summary: Member dashboard
+      responses:
+        '200': { description: Booking stats, upcoming stays, inquiries and notifications }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /dashboard/owner:
+    get:
+      tags: [Dashboards]
+      summary: Owner dashboard
+      description: Listings with live occupancy, pending requests, open inquiries, revenue, utilisation and a 7-day forward seat view.
+      responses:
+        '200': { description: Owner data }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /dashboard/admin:
+    get:
+      tags: [Dashboards]
+      summary: Admin dashboard and platform KPIs
+      responses:
+        '200':
+          description: KPIs, breakdowns, approval queue and platform-wide live occupancy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      kpis:
+                        type: object
+                        properties:
+                          registered_users: { type: integer }
+                          members: { type: integer }
+                          space_owners: { type: integer }
+                          spaces_listed: { type: integer }
+                          spaces_active: { type: integer }
+                          spaces_awaiting_approval: { type: integer }
+                          total_seats: { type: integer }
+                          bookings_total: { type: integer }
+                          bookings_pending: { type: integer }
+                          gross_booking_value: { type: integer }
+                          booking_completion_rate: { type: integer, description: Share of decided requests that were approved }
+                          cancellation_rate: { type: integer }
+                          occupancy_today_percent: { type: integer }
+                          open_inquiries: { type: integer }
+                          notifications_sent: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------- admin ---
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      parameters:
+        - { name: role, in: query, schema: { type: string, enum: [user, owner, admin] } }
+        - { name: q, in: query, schema: { type: string }, description: Search name, email or company }
+      responses:
+        '200': { description: Users with space and booking counts }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{id}/role:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      tags: [Admin]
+      summary: Change a user's role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [user, owner, admin] }
+      responses:
+        '200': { description: Role changed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: An admin cannot change their own role }
+
+  /admin/users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    delete:
+      tags: [Admin]
+      summary: Delete a user
+      responses:
+        '200': { description: Deleted }
+        '409': { description: An admin cannot delete their own account }
+
+  /admin/spaces:
+    get:
+      tags: [Admin]
+      summary: List every listing
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, active, suspended] } }
+      responses:
+        '200': { description: Listings with owner details and booking counts }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/spaces/{id}/approve:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Admin]
+      summary: Approve a listing
+      description: Makes it publicly visible and guarantees a 90-day bookable window.
+      responses:
+        '200': { description: Approved }
+        '409': { description: Already active }
+
+  /admin/spaces/{id}/suspend:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [Admin]
+      summary: Suspend a listing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Suspended }
+
+  /admin/bookings/settle:
+    post:
+      tags: [Admin]
+      summary: Complete past confirmed bookings
+      description: Moves `confirmed` bookings whose end date has passed to `completed`. Scheduled in production; exposed here to keep the lifecycle testable.
+      responses:
+        '200':
+          description: Number of bookings settled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  completed: { type: integer }
+
+  /admin/notifications:
+    get:
+      tags: [Admin]
+      summary: Platform notification log
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, maximum: 200, default: 50 } }
+      responses:
+        '200': { description: Delivery audit trail }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # -------------------------------------------------------- notifications ---
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Own notification feed
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, maximum: 100, default: 30 } }
+      responses:
+        '200':
+          description: Email and SMS messages sent to the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated, but not permitted for this role or resource
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflicts with current state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request failed schema validation
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field: { type: string }
+                        message: { type: string }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+
+    WorkspaceType:
+      type: string
+      enum: [private_cabin, shared_desk, dedicated_desk, meeting_room]
+
+    WorkStyle:
+      type: string
+      enum: [quiet_focus, collaborative, hybrid, client_facing]
+
+    BookingStatus:
+      type: string
+      enum: [pending, confirmed, rejected, cancelled, completed]
+
+    User:
+      type: object
+      description: The password hash is stripped before any user is serialised.
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [user, owner, admin] }
+        phone: { type: string, nullable: true }
+        company: { type: string, nullable: true }
+        team_size: { type: integer, nullable: true }
+        work_style: { type: string, nullable: true }
+        created_at: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string, description: JWT bearer token }
+        user: { $ref: '#/components/schemas/User' }
+
+    Amenity:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        icon: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        space_count: { type: integer }
+
+    Match:
+      type: object
+      properties:
+        score: { type: integer, minimum: 0, maximum: 100 }
+        fit: { type: string, enum: [excellent, good, fair, poor] }
+        reasons:
+          type: array
+          items: { type: string }
+          description: Plain-language explanation of the score.
+        breakdown: { type: object }
+
+    AvailabilityToday:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        seats_total: { type: integer }
+        seats_booked: { type: integer }
+        seats_available: { type: integer }
+        is_blocked: { type: boolean }
+        status: { type: string, enum: [available, full] }
+
+    LiveOccupancy:
+      type: object
+      nullable: true
+      properties:
+        seats_occupied: { type: integer }
+        seats_total: { type: integer }
+        percent: { type: integer }
+        recorded_at: { type: string }
+
+    Space:
+      type: object
+      properties:
+        id: { type: integer }
+        owner_id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        city: { type: string }
+        locality: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        workspace_type: { $ref: '#/components/schemas/WorkspaceType' }
+        area_sqft: { type: integer }
+        capacity: { type: integer }
+        price_per_seat_month: { type: integer, description: 0 for hourly-only listings such as meeting rooms }
+        price_per_day: { type: integer, nullable: true }
+        price_per_hour: { type: integer, nullable: true }
+        rating: { type: number }
+        review_count: { type: integer }
+        image_url: { type: string, nullable: true }
+        work_style: { type: string, nullable: true }
+        opens_at: { type: string, example: '09:00' }
+        closes_at: { type: string, example: '21:00' }
+        status: { type: string, enum: [pending, active, suspended] }
+        created_at: { type: string }
+
+    SpaceSummary:
+      allOf:
+        - $ref: '#/components/schemas/Space'
+        - type: object
+          properties:
+            amenities: { type: array, items: { $ref: '#/components/schemas/Amenity' } }
+            availability_today: { $ref: '#/components/schemas/AvailabilityToday' }
+            live_occupancy: { $ref: '#/components/schemas/LiveOccupancy' }
+            match: { $ref: '#/components/schemas/Match' }
+
+    SpaceDetail:
+      allOf:
+        - $ref: '#/components/schemas/SpaceSummary'
+        - type: object
+          properties:
+            owner:
+              type: object
+              properties:
+                id: { type: integer }
+                name: { type: string }
+                email: { type: string }
+                phone: { type: string, nullable: true }
+                company: { type: string, nullable: true }
+            availability: { type: array, items: { $ref: '#/components/schemas/AvailabilityDay' } }
+            recent_occupancy: { type: array, items: { $ref: '#/components/schemas/OccupancyReading' } }
+
+    SpaceInput:
+      type: object
+      required: [name, city, workspace_type, area_sqft, capacity, price_per_seat_month]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        city: { type: string, minLength: 2, maxLength: 80 }
+        locality: { type: string, maxLength: 80 }
+        address: { type: string, maxLength: 240 }
+        workspace_type: { $ref: '#/components/schemas/WorkspaceType' }
+        area_sqft: { type: integer, minimum: 10 }
+        capacity: { type: integer, minimum: 1, maximum: 5000 }
+        price_per_seat_month: { type: integer, minimum: 0 }
+        price_per_day: { type: integer, minimum: 0 }
+        price_per_hour: { type: integer, minimum: 0 }
+        image_url: { type: string, maxLength: 500 }
+        work_style: { $ref: '#/components/schemas/WorkStyle' }
+        opens_at: { type: string, pattern: '^\d{2}:\d{2}$' }
+        closes_at: { type: string, pattern: '^\d{2}:\d{2}$' }
+        amenities: { type: array, items: { type: string } }
+
+    AvailabilityDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        seats_total: { type: integer }
+        seats_booked: { type: integer }
+        seats_available: { type: integer }
+        is_blocked: { type: boolean }
+        status: { type: string, enum: [available, full, blocked] }
+
+    OccupancyReading:
+      type: object
+      properties:
+        space_id: { type: integer }
+        seats_occupied: { type: integer }
+        seats_total: { type: integer }
+        percent: { type: integer }
+        source: { type: string }
+        recorded_at: { type: string }
+
+    BookingDates:
+      type: object
+      required: [space_id, start_date, end_date, seats]
+      properties:
+        space_id: { type: integer }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date, description: Inclusive }
+        seats: { type: integer, minimum: 1 }
+
+    Booking:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string, example: FLX-A1B2C3 }
+        space_id: { type: integer }
+        space_name: { type: string }
+        space_city: { type: string }
+        owner_id: { type: integer }
+        user_id: { type: integer }
+        user_name: { type: string }
+        user_company: { type: string, nullable: true }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        seats: { type: integer }
+        total_price: { type: integer }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        notes: { type: string, nullable: true }
+        decline_reason: { type: string, nullable: true }
+        created_at: { type: string }
+        decided_at: { type: string, nullable: true }
+
+    Inquiry:
+      type: object
+      properties:
+        id: { type: integer }
+        space_id: { type: integer }
+        space_name: { type: string }
+        owner_id: { type: integer }
+        user_id: { type: integer }
+        user_name: { type: string }
+        subject: { type: string }
+        message: { type: string }
+        team_size: { type: integer, nullable: true }
+        work_style: { type: string, nullable: true }
+        expectations: { type: string, nullable: true }
+        wants_meeting: { type: integer, description: '0 or 1' }
+        status: { type: string, enum: [open, responded, closed] }
+        reply: { type: string, nullable: true }
+        created_at: { type: string }
+        replied_at: { type: string, nullable: true }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        channel: { type: string, enum: [email, sms] }
+        recipient: { type: string }
+        subject: { type: string, nullable: true }
+        body: { type: string }
+        status: { type: string, enum: [sent, failed, queued] }
+        created_at: { type: string }
+
+    MatchCriteria:
+      type: object
+      description: Every field is optional. Omitted criteria score neutrally — they neither help nor hurt a space.
+      properties:
+        persons: { type: integer, minimum: 1, description: 'Weight 25' }
+        budget: { type: integer, minimum: 1, description: 'Per seat per month. Weight 25' }
+        amenities: { type: array, items: { type: string }, description: 'Slugs. Weight 15' }
+        city: { type: string, description: 'Weight 15 (with locality)' }
+        locality: { type: string }
+        area_required: { type: integer, description: 'Square feet. Weight 10' }
+        workspace_type: { $ref: '#/components/schemas/WorkspaceType' }
+        work_style: { $ref: '#/components/schemas/WorkStyle' }
+        available_on: { type: string, format: date }
+        limit: { type: integer, minimum: 1, maximum: 50, default: 10 }

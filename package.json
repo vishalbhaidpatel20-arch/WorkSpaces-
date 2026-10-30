@@ -1,0 +1,16 @@
+{
+  "name": "flexospaces",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Co-Working Space Management Using Real-Time Monitoring",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "seed": "npm --prefix server run seed:fresh",
+    "dev:api": "npm --prefix server run dev",
+    "dev:web": "npm --prefix client run dev",
+    "start": "npm --prefix server start",
+    "build": "npm --prefix client run build",
+    "test": "npm --prefix server test"
+  },
+  "engines": { "node": ">=22.5.0" }
+}

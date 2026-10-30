@@ -1,0 +1,803 @@
+{
+  "info": {
+    "name": "FlexoSpaces API",
+    "description": "Runnable requests for the FlexoSpaces co-working platform API.\n\n## Setup\n1. Start the API: `cd server && npm run seed:fresh && npm start`\n2. Import this collection and set the `baseUrl` variable (default `http://localhost:4000/api`).\n3. Run **Auth > Login (member)**, **Login (owner)** or **Login (admin)** — each stores its token in a collection variable automatically, so every other request is ready to send.\n\n## Order\nThe folders are ordered to work top to bottom: sign in, search, match, book, decide, then administer. `Bookings > Request a booking` saves `bookingId` for the confirm/decline/cancel requests below it.\n\nAll seeded accounts use the password `Password123`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api" },
+    { "key": "memberToken", "value": "" },
+    { "key": "ownerToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "spaceId", "value": "1" },
+    { "key": "bookingId", "value": "" },
+    { "key": "inquiryId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('service is up', () => pm.response.to.have.status(200));",
+                  "pm.test('reports ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (member)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ananya@brightpixel.io\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('signs in', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('role is user', () => pm.expect(b.user.role).to.eql('user'));",
+                  "pm.test('no password hash leaks', () => pm.expect(b.user).to.not.have.property('password_hash'));",
+                  "pm.collectionVariables.set('memberToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (owner)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"meera@workloft.in\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('signs in', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('ownerToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@flexospaces.com\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('signs in', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register a member",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Member\",\n  \"email\": \"test.member@example.com\",\n  \"password\": \"Password123\",\n  \"role\": \"user\",\n  \"team_size\": 5,\n  \"work_style\": \"collaborative\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Register as admin (must be refused)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sneaky Admin\",\n  \"email\": \"sneaky@example.com\",\n  \"password\": \"Password123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Privilege-escalation guard: the public signup schema permits `user` and `owner` only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('escalation refused with 422', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_size\": 8,\n  \"work_style\": \"hybrid\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Spaces",
+      "item": [
+        {
+          "name": "Search with filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces?city=Ahmedabad&persons=6&budget=9000&amenities=wifi,cafeteria&sort=match",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces"],
+              "query": [
+                { "key": "city", "value": "Ahmedabad" },
+                { "key": "persons", "value": "6" },
+                { "key": "budget", "value": "9000" },
+                { "key": "amenities", "value": "wifi,cafeteria" },
+                { "key": "sort", "value": "match" }
+              ]
+            },
+            "description": "Filters are ANDed. `amenities` requires a space to carry every slug listed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns results', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('every result is scored', () => d.forEach(s => pm.expect(s.match.score).to.be.a('number')));",
+                  "pm.test('best match first', () => {",
+                  "  const scores = d.map(s => s.match.score);",
+                  "  scores.forEach((v, i) => { if (i) pm.expect(scores[i-1]).to.be.at.least(v); });",
+                  "});",
+                  "if (d.length) pm.collectionVariables.set('spaceId', d[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter bounds",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/filters", "host": ["{{baseUrl}}"], "path": ["spaces", "filters"] }
+          }
+        },
+        {
+          "name": "Cities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/cities", "host": ["{{baseUrl}}"], "path": ["spaces", "cities"] }
+          }
+        },
+        {
+          "name": "Space detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/spaces/{{spaceId}}", "host": ["{{baseUrl}}"], "path": ["spaces", "{{spaceId}}"] }
+          }
+        },
+        {
+          "name": "Create a listing (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Floor Satellite\",\n  \"description\": \"A compact floor added through the API.\",\n  \"city\": \"Ahmedabad\",\n  \"locality\": \"Bodakdev\",\n  \"workspace_type\": \"shared_desk\",\n  \"area_sqft\": 1800,\n  \"capacity\": 30,\n  \"price_per_seat_month\": 6000,\n  \"price_per_day\": 300,\n  \"work_style\": \"hybrid\",\n  \"amenities\": [\"wifi\", \"power_backup\", \"air_con\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/spaces", "host": ["{{baseUrl}}"], "path": ["spaces"] },
+            "description": "The listing is created as `pending` and stays invisible to members until an admin approves it."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Smart matching",
+      "item": [
+        {
+          "name": "Match on criteria",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"persons\": 6,\n  \"budget\": 9000,\n  \"area_required\": 800,\n  \"city\": \"Ahmedabad\",\n  \"work_style\": \"collaborative\",\n  \"amenities\": [\"wifi\", \"cafeteria\"],\n  \"limit\": 5\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/match", "host": ["{{baseUrl}}"], "path": ["match"] },
+            "description": "Unlike the search endpoint, matching does not hide near-misses — an over-budget space is returned with the shortfall stated in `match.reasons`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns recommendations', () => pm.response.to.have.status(200));",
+                  "const m = pm.response.json().meta;",
+                  "pm.test('weights sum to 100', () => {",
+                  "  const total = Object.values(m.weights).reduce((a, b) => a + b, 0);",
+                  "  pm.expect(total).to.eql(100);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Match over budget (near-miss is surfaced)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"persons\": 20,\n  \"budget\": 5000,\n  \"city\": \"Mumbai\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/match", "host": ["{{baseUrl}}"], "path": ["match"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.test('still returns options', () => pm.expect(d.length).to.be.above(0));",
+                  "pm.test('explains the overshoot', () => pm.expect(d[0].match.reasons.join(' ')).to.include('over your budget'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain one score",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"persons\": 6,\n  \"budget\": 9000,\n  \"city\": \"Ahmedabad\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/match/explain/{{spaceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["match", "explain", "{{spaceId}}"]
+            }
+          }
+        },
+        {
+          "name": "Peer teams",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": { "raw": "{{baseUrl}}/match/peers?limit=5", "host": ["{{baseUrl}}"], "path": ["match", "peers"], "query": [{ "key": "limit", "value": "5" }] },
+            "description": "Contact details are deliberately never returned — introductions go through a space manager."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json().data;",
+                  "pm.test('no contact details exposed', () => d.forEach(p => {",
+                  "  pm.expect(p).to.not.have.property('email');",
+                  "  pm.expect(p).to.not.have.property('phone');",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "Availability & monitoring",
+      "item": [
+        {
+          "name": "Availability window",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "Block a date range (owner)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start\": \"2026-12-24\",\n  \"end\": \"2026-12-26\",\n  \"is_blocked\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "Ingest a sensor reading (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seats_occupied\": 17,\n  \"source\": \"door-sensor\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/occupancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "occupancy"]
+            },
+            "description": "The integration point for real hardware. Emits an `occupancy` Socket.IO event to the `space:<id>` and `monitor` rooms."
+          }
+        },
+        {
+          "name": "Occupancy history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/occupancy?limit=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["spaces", "{{spaceId}}", "occupancy"],
+              "query": [{ "key": "limit", "value": "30" }]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Price quote",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"space_id\": {{spaceId}},\n  \"start_date\": \"2026-12-01\",\n  \"end_date\": \"2026-12-05\",\n  \"seats\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/bookings/quote", "host": ["{{baseUrl}}"], "path": ["bookings", "quote"] }
+          }
+        },
+        {
+          "name": "Request a booking (member)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"space_id\": {{spaceId}},\n  \"start_date\": \"2026-12-01\",\n  \"end_date\": \"2026-12-05\",\n  \"seats\": 2,\n  \"notes\": \"Two of us trialling the floor.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "description": "Seats are held immediately, so a second member cannot be told the same desk is free while the owner decides."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('request created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json().data;",
+                  "pm.test('starts pending', () => pm.expect(b.status).to.eql('pending'));",
+                  "pm.collectionVariables.set('bookingId', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Overbook (must be refused)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"space_id\": {{spaceId}},\n  \"start_date\": \"2026-12-01\",\n  \"end_date\": \"2026-12-05\",\n  \"seats\": 99999\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('refused', () => pm.expect(pm.response.code).to.be.oneOf([409, 422]));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?scope=mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [{ "key": "scope", "value": "mine" }]
+            }
+          }
+        },
+        {
+          "name": "Bookings for my spaces (owner)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings?scope=owned&status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"],
+              "query": [
+                { "key": "scope", "value": "owned" },
+                { "key": "status", "value": "pending" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Confirm a booking (owner)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "confirm"]
+            }
+          }
+        },
+        {
+          "name": "Decline a booking (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"That floor is reserved for an event that week.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Cancel a booking (member)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{bookingId}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Inquiries",
+      "item": [
+        {
+          "name": "Raise an inquiry (member)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"space_id\": {{spaceId}},\n  \"subject\": \"Trial day for a 4-person design team\",\n  \"message\": \"Could the four of us try the space for a day before committing to a month?\",\n  \"team_size\": 4,\n  \"work_style\": \"collaborative\",\n  \"expectations\": \"Seats together, upload speed above 40 Mbps, a whiteboard nearby.\",\n  \"wants_meeting\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/inquiries", "host": ["{{baseUrl}}"], "path": ["inquiries"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('inquiry raised', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('inquiryId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inquiries for my spaces (owner)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/inquiries?scope=owned&status=open",
+              "host": ["{{baseUrl}}"],
+              "path": ["inquiries"],
+              "query": [
+                { "key": "scope", "value": "owned" },
+                { "key": "status", "value": "open" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply to an inquiry (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reply\": \"Happy to host a visit this week — day passes are available for all four.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/inquiries/{{inquiryId}}/reply",
+              "host": ["{{baseUrl}}"],
+              "path": ["inquiries", "{{inquiryId}}", "reply"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Dashboards",
+      "item": [
+        {
+          "name": "Member dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/user", "host": ["{{baseUrl}}"], "path": ["dashboard", "user"] }
+          }
+        },
+        {
+          "name": "Owner dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/owner", "host": ["{{baseUrl}}"], "path": ["dashboard", "owner"] }
+          }
+        },
+        {
+          "name": "Owner dashboard as member (must be 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/owner", "host": ["{{baseUrl}}"], "path": ["dashboard", "owner"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('role boundary holds', () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin dashboard and KPIs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/admin", "host": ["{{baseUrl}}"], "path": ["dashboard", "admin"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Approval queue",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/spaces?status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "spaces"],
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Approve a listing",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/spaces/13/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "spaces", "13", "approve"]
+            },
+            "description": "Space 13 is the seeded pending listing. Approving it makes it publicly visible and opens a 90-day bookable window."
+          }
+        },
+        {
+          "name": "Suspend a listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Pending verification of floor plans.\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/admin/spaces/13/suspend",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "spaces", "13", "suspend"]
+            }
+          }
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?role=owner",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"],
+              "query": [{ "key": "role", "value": "owner" }]
+            }
+          }
+        },
+        {
+          "name": "Settle past bookings",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bookings/settle",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "bookings", "settle"]
+            }
+          }
+        },
+        {
+          "name": "Admin route as owner (must be 403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin", "users"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('role boundary holds', () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "My notification feed",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
+              "query": [{ "key": "limit", "value": "20" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

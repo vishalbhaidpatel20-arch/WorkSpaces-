@@ -1,0 +1,139 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * Chart/ink/surface values come from the validated reference palette. Every
+ * chart in this app is deliberately SINGLE-SERIES, so `--series-1` is the only
+ * categorical slot in use: that passes all six palette checks on this surface
+ * (lightness band, chroma floor, contrast >= 3:1) with no CVD risk, and means no
+ * chart needs a legend box - its title names the series.
+ *
+ * `--track` is recessive chart chrome (the "total" behind a meter), never a
+ * series colour.
+ */
+@theme {
+  --color-plane: #f9f9f7;
+  --color-surface: #fcfcfb;
+
+  --color-ink: #0b0b0b;
+  --color-ink-soft: #52514e;
+  --color-ink-muted: #898781;
+
+  --color-line: #e1e0d9;
+  --color-axis: #c3c2b7;
+
+  --color-series: #2a78d6;
+  --color-series-weak: #cde2fb;
+  --color-track: #e1e0d9;
+
+  /* Reserved status roles - always paired with an icon or text label. */
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+  --color-good-ink: #006300;
+
+  --color-brand: #2a78d6;
+  --color-brand-dark: #1c5cab;
+  --color-brand-wash: #eef5fd;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-plane);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Axis ticks and table columns align vertically; hero figures do not. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid rgb(11 11 11 / 0.1);
+    border-radius: 0.75rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 120ms, border-color 120ms, opacity 120ms;
+    cursor: pointer;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--color-brand);
+    color: #ffffff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-brand-dark);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--color-ink-soft);
+    border: 1px solid rgb(11 11 11 / 0.12);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: rgb(11 11 11 / 0.04);
+  }
+
+  .btn-danger {
+    background-color: transparent;
+    color: var(--color-critical);
+    border: 1px solid color-mix(in srgb, var(--color-critical) 40%, transparent);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-critical) 8%, transparent);
+  }
+
+  .field {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(11 11 11 / 0.14);
+    background-color: var(--color-surface);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+  }
+  .field:focus {
+    border-color: var(--color-brand);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 15%, transparent);
+  }
+
+  .label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-ink-soft);
+    margin-bottom: 0.375rem;
+  }
+}
