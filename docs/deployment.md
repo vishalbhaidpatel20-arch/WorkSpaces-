@@ -119,6 +119,64 @@ assertions on reading counts non-deterministic.
 
 ---
 
+## 3a. Hosted deployment (Vercel + Render)
+
+### Why the API is not on Vercel
+
+Vercel runs serverless functions: an ephemeral filesystem, no WebSocket
+server support, and no long-lived processes. This API needs all three —
+a persistent disk for SQLite, Socket.IO for the live occupancy feed, and an
+interval for telemetry. Putting it on Vercel would silently break bookings
+(writes vanish) and the entire real-time monitoring feature.
+
+So the split is: **static client on Vercel, API on a platform that runs an
+ordinary Node process.** The application code needs no changes for this.
+
+| Piece | Host | Why |
+|---|---|---|
+| React SPA | Vercel | Static, global CDN, instant rollbacks — exactly what it's for |
+| Express API | Render (or Railway / Fly.io) | Persistent disk, WebSockets, long-lived process |
+
+### Current deployment
+
+- **Client:** https://workspace-ruby-chi-97.vercel.app (live)
+- **API:** not yet deployed — the client shows "Request failed (404)" until it is
+
+### Step 1 — deploy the API to Render
+
+`render.yaml` in the repository root is a complete blueprint: persistent disk,
+generated `JWT_SECRET`, health check, correct proxy hops, and a start command
+that seeds demo data **only when the database is empty**, so redeploys never
+wipe real bookings.
+
+1. Push this repository to GitHub.
+2. In Render: **New → Blueprint**, point it at the repo, apply.
+3. Note the service URL, e.g. `https://workspace-api.onrender.com`.
+
+> Render's free tier sleeps after inactivity, so the first request after a
+> quiet period takes ~30s. That is a free-tier property, not a bug.
+
+### Step 2 — point the client at the API
+
+The API origin is baked in at build time, so it must be set as a Vercel
+environment variable and then redeployed:
+
+```bash
+cd client
+vercel env add VITE_API_URL production   # paste the Render URL, no trailing slash
+vercel deploy --prod
+```
+
+### Step 3 — let the API accept the client
+
+Set `CORS_ORIGIN` on the Render service to the exact Vercel origin. The app
+refuses to start in production on `*`, so it must name the real origin. A
+mismatch shows up as a 403 naming the blocked origin, not a silent failure.
+
+Both values must agree, or the browser is blocked at the CORS check.
+
+---
+
 ## 4. Production build
 
 ### Frontend

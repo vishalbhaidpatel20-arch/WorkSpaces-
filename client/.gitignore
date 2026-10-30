@@ -1,0 +1,10 @@
+# Vercel CLI local project link
+.vercel
+
+# Local environment values
+.env
+.env.local
+.env.*.local
+
+# ...but the template belongs in the repository.
+!.env.example

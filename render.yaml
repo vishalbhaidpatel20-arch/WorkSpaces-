@@ -1,0 +1,66 @@
+# Render blueprint for the WorkSpace API.
+#
+# Why the API is not on Vercel: Vercel runs serverless functions with an
+# ephemeral filesystem, no WebSocket server support and no long-lived
+# processes. This API needs all three - a persistent disk for SQLite,
+# Socket.IO for the live occupancy feed, and an interval for telemetry.
+# Render runs it as an ordinary Node process with a mounted disk, so the
+# application code needs no changes at all.
+#
+# Deploy: push this repository to GitHub, then in the Render dashboard choose
+# New > Blueprint and point it at the repo. Render reads this file.
+
+services:
+  - type: web
+    name: workspace-api
+    runtime: node
+    plan: free
+    region: singapore          # closest region to the seeded Indian cities
+    rootDir: server
+    buildCommand: npm ci
+    # Seeds demo data only when the database is empty, so the first deploy has
+    # something to show and later deploys never wipe real bookings.
+    startCommand: npm run start:hosted
+    healthCheckPath: /api/health
+
+    # SQLite needs storage that survives a deploy. Without this the database
+    # lives in the container's writable layer and every deploy wipes it.
+    disk:
+      name: workspace-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Generated once by Render and kept across deploys. The app refuses to
+      # start in production if this is missing or left at the dev default.
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: JWT_TTL
+        value: 7d
+
+      # On the mounted disk, not in the container layer.
+      - key: DB_PATH
+        value: /var/data/app.db
+
+      # Render terminates TLS at its edge and forwards one hop, so rate
+      # limiting sees the real client IP rather than the proxy's.
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+
+      - key: RATE_LIMIT
+        value: "on"
+
+      # Off by default: the simulator publishes invented occupancy readings,
+      # which is fine for a demo and wrong for real users. Turn it on only if
+      # this deployment is a demonstration.
+      - key: OCCUPANCY_SIMULATION
+        value: "off"
+
+      # The Vercel frontend origin. Update this if the Vercel URL changes,
+      # and keep it to real origins - the app refuses to start on "*".
+      - key: CORS_ORIGIN
+        value: https://workspace-ruby-chi-97.vercel.app

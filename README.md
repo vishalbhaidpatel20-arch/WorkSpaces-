@@ -65,6 +65,21 @@ on a realistic office-day curve so the feature is demonstrable without hardware
 
 ---
 
+## Live deployment
+
+| Piece | Status |
+|---|---|
+| **Client** | https://workspace-ruby-chi-97.vercel.app — live on Vercel |
+| **API** | Not yet deployed. `render.yaml` is ready; see [`docs/deployment.md`](docs/deployment.md) § 3a |
+
+Until the API is deployed the site loads but every request returns 404.
+**The API cannot run on Vercel**: serverless functions have an ephemeral
+filesystem, no WebSocket server support and no long-lived processes, and this
+API needs a persistent disk for SQLite, Socket.IO for the live occupancy feed,
+and an interval for telemetry. It runs unchanged on Render, Railway or Fly.io.
+
+---
+
 ## Quick start
 
 Requires **Node.js ≥ 22.5** (uses the built-in `node:sqlite`). No database

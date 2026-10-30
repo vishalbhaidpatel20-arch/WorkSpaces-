@@ -11,6 +11,22 @@ import { hashPassword } from './lib/auth.js';
 import { datesBetween, ensureAvailability, today, addDays } from './lib/spaces.js';
 
 const FRESH = process.argv.includes('--fresh');
+const IF_EMPTY = process.argv.includes('--if-empty');
+
+/*
+ * `--if-empty` makes this safe to run on every deploy: it seeds a brand-new
+ * database once and then does nothing, so a redeploy never wipes real
+ * bookings. Without it a hosted demo either starts empty or loses its data
+ * on the next push.
+ */
+if (IF_EMPTY) {
+  const { n } = db.prepare('SELECT COUNT(*) AS n FROM users').get();
+  if (n > 0) {
+    console.log(`Database already has ${n} user(s); leaving it untouched.`);
+    process.exit(0);
+  }
+  console.log('Empty database detected - seeding demo data.');
+}
 
 if (FRESH) {
   for (const table of ['occupancy_readings', 'notifications', 'inquiries', 'bookings',
